@@ -35,6 +35,7 @@ typedef struct _AppTypeDef
   RelayTypeDef Relay;
   CanBusSpeedTypeDef *CanSpeed;
   uint8_t StatusAutoSendEnable;
+
   struct _statusCounters
   {
     uint32_t CanRx;
@@ -276,6 +277,36 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       uint8_t data[] = { CARD_TYPE, 0xDE, 0xF0, 0xC3, 0xD8, 0x12, 0x00 };
       memcpy(data + 3, (uint8_t*)&Device.Memory.SerialNumber, DEVICE_SN_SIZE);
       CanRespSend(Device.Address, data, sizeof(data));
+    }
+    /*** Read from EEPROM  ***/
+    else if(frame[0] == CARD_TYPE && frame[1] == 0xFA && frame[2] == 0xF1)
+    {
+      uint16_t addr = 0;
+      addr |= frame[4] << 8;  /* address high */
+      addr |= frame[3];       /* address low  */
+      uint8_t data[2];
+      memset(data, 0x00, sizeof(data));
+      if(MemoryLowRead(addr, data, sizeof(data)) != HAL_OK)
+      {
+        Device.Status.MemFail++;
+      }
+      else
+      {
+        uint8_t temp[] = {CARD_TYPE, 0xFA, 0xF1, frame[3], frame[4], data[0], data[1] };
+        CanRespSend(Device.Address,temp, sizeof(temp));
+      }
+    }
+    /*** Write to EEPROM ***/
+    else if(frame[0] == CARD_TYPE && frame[1] == 0xFA && frame[2] == 0xF2)
+    {
+      uint16_t addr = 0;
+      addr |= frame[4] << 8;  /* address high */
+      addr |= frame[3];       /* address low  */
+      uint8_t data[] = { frame[5], frame[6] };
+      if(MemoryLowWrite(addr, data, sizeof(data)) != HAL_OK)
+      {
+        Device.Status.MemFail++;
+      }
     }
     else
     {

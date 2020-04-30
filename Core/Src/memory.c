@@ -15,8 +15,7 @@
 #define TEST_ADDRESS        END_ADDRESS - sizeof(TEST_CONTENT)
 
 /* Private function prototypes -----------------------------------------------*/
-static HAL_StatusTypeDef LowMemoryWrite(uint16_t address, void *data, size_t size);
-static HAL_StatusTypeDef LowMemoryRead(uint16_t address, void *data, size_t size);
+
 
 uint8_t MemoryInit(MemoryTypeDef *mem)
 {
@@ -34,7 +33,7 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
   HAL_StatusTypeDef status = HAL_OK;
 
   /*** Read First Start Check ***/
-   status = LowMemoryRead(mem->FirstStartCheckNumberAddr, mem->FirstStartCheck,sizeof(MEM_FIRST_CHECK_CONTENT));
+   status = MemoryLowRead(mem->FirstStartCheckNumberAddr, mem->FirstStartCheck,sizeof(MEM_FIRST_CHECK_CONTENT));
      if(status != HAL_OK)
        return MEM_FAIL;
 
@@ -47,13 +46,13 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
      mem->BootUpCounter = 0;
 
      /*** First start content write ***/
-     status = LowMemoryWrite(mem->FirstStartCheckNumberAddr, MEM_FIRST_CHECK_CONTENT,sizeof(MEM_FIRST_CHECK_CONTENT));
+     status = MemoryLowWrite(mem->FirstStartCheckNumberAddr, MEM_FIRST_CHECK_CONTENT,sizeof(MEM_FIRST_CHECK_CONTENT));
 
      /*** Write a new serial number ***/
      srand(HAL_GetTick());
      mem->SerialNumber = rand();
      mem->SerialNumber &= 0x00FFFFFF;
-     status = LowMemoryWrite(mem->SerialNumberAddr, &mem->SerialNumber, sizeof(mem->SerialNumber));
+     status = MemoryLowWrite(mem->SerialNumberAddr, &mem->SerialNumber, sizeof(mem->SerialNumber));
   }
   else
   {
@@ -63,22 +62,22 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
     for(uint8_t rly=0; rly < DEVICE_RELAY_COUNT; rly++)
     {
       address = sizeof(mem->RealyCounters[0]) * rly; //K1:0 = 0x00000000
-      if((status = LowMemoryRead(address, &mem->RealyCounters[rly],sizeof(mem->RealyCounters[0])))!= HAL_OK)
+      if((status = MemoryLowRead(address, &mem->RealyCounters[rly],sizeof(mem->RealyCounters[0])))!= HAL_OK)
           break;
     }
     /*** Read Boot Up Counter ***/
-    status = LowMemoryRead(mem->BootUpCounterAddr, &mem->BootUpCounter,sizeof(mem->BootUpCounter));
+    status = MemoryLowRead(mem->BootUpCounterAddr, &mem->BootUpCounter,sizeof(mem->BootUpCounter));
     mem->BootUpCounter ++;
 
 
     /*** BootUpCounterIncrase ***/
-    status = LowMemoryWrite(mem->BootUpCounterAddr, &mem->BootUpCounter,sizeof(mem->BootUpCounter));
+    status = MemoryLowWrite(mem->BootUpCounterAddr, &mem->BootUpCounter,sizeof(mem->BootUpCounter));
 
     if(status != HAL_OK)
       return MEM_FAIL;
 
     /*** Read Serial Number ***/
-    status = LowMemoryRead(mem->SerialNumberAddr, &mem->SerialNumber,sizeof(mem->SerialNumber));
+    status = MemoryLowRead(mem->SerialNumberAddr, &mem->SerialNumber,sizeof(mem->SerialNumber));
     mem->SerialNumber &= 0x00FFFFFF;
   }
 
@@ -93,7 +92,7 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
 uint32_t MemoryChangeSerailNumber(MemoryTypeDef *mem, uint32_t serialnumber)
 {
   HAL_StatusTypeDef status = HAL_OK;
-  status = LowMemoryRead(mem->SerialNumberAddr, &serialnumber, sizeof(mem->SerialNumber));
+  status = MemoryLowRead(mem->SerialNumberAddr, &serialnumber, sizeof(mem->SerialNumber));
   mem->SerialNumber = serialnumber;
   if(status != HAL_OK)
     return MEM_FAIL;
@@ -119,7 +118,7 @@ void MemoryTask(MemoryTypeDef *mem)
     for(uint8_t rly = 0; rly < DEVICE_RELAY_COUNT; rly++)
     {
       uint16_t address = sizeof(mem->RealyCounters[0]) * rly;
-      status = LowMemoryWrite(address, &mem->RealyCounters[rly], sizeof(mem->RealyCounters[0]));
+      status = MemoryLowWrite(address, &mem->RealyCounters[rly], sizeof(mem->RealyCounters[0]));
       if (status != HAL_OK)
         break;
     }
@@ -148,9 +147,9 @@ uint8_t MemoryTest(void)
   uint8_t writeBuf[]= {TEST_CONTENT};
   uint8_t readBuf[sizeof(TEST_CONTENT)];
 
-  LowMemoryWrite(TEST_ADDRESS, writeBuf, sizeof(writeBuf));
+  MemoryLowWrite(TEST_ADDRESS, writeBuf, sizeof(writeBuf));
   memset(readBuf, '0', sizeof(readBuf));
-  LowMemoryRead(TEST_ADDRESS,readBuf, sizeof(readBuf));
+  MemoryLowRead(TEST_ADDRESS,readBuf, sizeof(readBuf));
 
    if(memcmp(writeBuf,readBuf, sizeof(writeBuf))==0)
     return MEM_OK;
@@ -164,11 +163,11 @@ HAL_StatusTypeDef MemoryReset(MemoryTypeDef *mem)
   uint8_t content[sizeof(MEM_FIRST_CHECK_CONTENT)];
   memset(content,'0',sizeof(MEM_FIRST_CHECK_CONTENT));
   /*** First start content write ***/
-  status = LowMemoryWrite(mem->FirstStartCheckNumberAddr, content,sizeof(MEM_FIRST_CHECK_CONTENT));
+  status = MemoryLowWrite(mem->FirstStartCheckNumberAddr, content,sizeof(MEM_FIRST_CHECK_CONTENT));
   return status;
 }
 
-static HAL_StatusTypeDef LowMemoryRead(uint16_t address, void *data, size_t size)
+HAL_StatusTypeDef MemoryLowRead(uint16_t address, void *data, size_t size)
 {
   HAL_StatusTypeDef status;
   uint32_t timestamp = HAL_GetTick();
@@ -193,7 +192,7 @@ static HAL_StatusTypeDef LowMemoryRead(uint16_t address, void *data, size_t size
   return status;
 }
 
-static HAL_StatusTypeDef LowMemoryWrite(uint16_t address, void *data, size_t size)
+HAL_StatusTypeDef MemoryLowWrite(uint16_t address, void *data, size_t size)
 {
   uint32_t timestamp = HAL_GetTick();
   HAL_StatusTypeDef status;

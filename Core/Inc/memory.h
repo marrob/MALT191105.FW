@@ -47,6 +47,8 @@ HAL_StatusTypeDef MemoryReset(MemoryTypeDef *mem);
 void MemoryResetRealyCnt(MemoryTypeDef *mem);
 void MemorySave(MemoryTypeDef *mem);
 void MemoryTask(MemoryTypeDef *mem);
+HAL_StatusTypeDef MemoryLowWrite(uint16_t address, void *data, size_t size);
+HAL_StatusTypeDef MemoryLowRead(uint16_t address, void *data, size_t size);
 uint32_t MemoryChangeSerailNumber(MemoryTypeDef *mem, uint32_t serialnumber);
 
 
