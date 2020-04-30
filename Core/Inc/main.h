@@ -24,7 +24,6 @@ extern "C" {
 extern I2C_HandleTypeDef hi2c2;
 extern SPI_HandleTypeDef hspi2;
 extern LedHandle_Type    hLed;
-char StringBuffer[80];
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -139,7 +138,12 @@ void DeviceConsoleWrite(char *str);
 #define HOST_ADDRESS        0x1558FFFF
 #define DEVICE_SN_SIZE      3
 
-#define DEVICE_FW           0x010E
+#ifndef DEBUG
+  #define DEVICE_FW           0x0100
+#else
+  #define DEVICE_FW           0x010D
+#endif
+
 #define DEVICE_MNF          "AltonTech"
 #define DEVICE_NAME_SIZE    sizeof(DEVICE_NAME)
 #define DEVICE_FW_SIZE      sizeof(DEVICE_FW)
