@@ -6,18 +6,18 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include <outputs.h>
+#include <output.h>
 
 /* Private function prototypes -----------------------------------------------*/
 static void Update(uint8_t *state);
 static void ArrayToolsU8SetBit(const uint16_t index, void* array);
 static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter);
 
-/* Relays ---------------------------------------------------------------------*/
+/* ---------------------------------------------------------------------------*/
 /*
- * k: 1..RELAY_COUNT
+ * k: 0..DEVICE_OUTPUT_COUNT-1
  */
-void OutputOnOne(OutputTypeDef *h, uint8_t k)
+void OutputSetOnOne(OutputTypeDef *h, uint8_t k)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
   uint8_t temp[OUTPUT_ARRAY];
@@ -30,9 +30,9 @@ void OutputOnOne(OutputTypeDef *h, uint8_t k)
 }
 
 /*
- * k: 0..RELAY_COUNT-1
+ * k: 0..DEVICE_OUTPUT_COUNT-1
  */
-void OutputOffOne(OutputTypeDef *h, uint8_t k)
+void OutputSetOffOne(OutputTypeDef *h, uint8_t k)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
   uint8_t temp[OUTPUT_ARRAY];

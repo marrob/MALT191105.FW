@@ -36,8 +36,8 @@ typedef struct {
 
 void OutputEnable(void);
 
-void OutputOnOne(OutputTypeDef *h, uint8_t k);
-void OutputOffOne(OutputTypeDef *h, uint8_t k);
+void OutputSetOnOne(OutputTypeDef *h, uint8_t k);
+void OutputSetOffOne(OutputTypeDef *h, uint8_t k);
 
 void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);
 void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);

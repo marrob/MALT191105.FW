@@ -8,7 +8,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include <outputs.h>
+#include <output.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -37,7 +37,7 @@ typedef struct _AppTypeDef
   uint8_t Address;
   uint16_t Version;
   MemoryTypeDef Memory;
-  OutputTypeDef Outputs;
+  OutputTypeDef Output;
   CanBusSpeedTypeDef *CanSpeed;
   uint8_t StatusAutoSendEnable;
 
@@ -60,8 +60,8 @@ typedef struct _AppTypeDef
     uint32_t Reset;
     uint32_t HostStart;
     uint32_t Status;
-    uint32_t SetOneRealy;
-    uint32_t OffOneRelay;
+    uint32_t SetOnOne;
+    uint32_t SetOffOne;
     uint32_t SeveralOn;
     uint32_t SeveralOff;
     uint32_t SeveralToogle;
@@ -180,7 +180,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
       {
         Device.Status.MemSaved++;
-        Device.Memory.RealyCounters[i] = Device.Outputs.Counters[i];
+        Device.Memory.RealyCounters[i] = Device.Output.Counters[i];
       }
       if(Device.Status.MemFail == 0)
       {
@@ -196,8 +196,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     else if(memcmp(frame, (uint8_t[]){0xAA, 0xFF}, 2)==0)
     {
       Device.Req.GlobalReset++;
-      OutputReset(&Device.Outputs);
-      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
+      OutputReset(&Device.Output);
+      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
       CanAskAllInfoResponse();
     }
     else
@@ -210,42 +210,42 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     /*** Set Off One Outputs Request ***/
     if(frame[0]== CARD_TYPE && frame[1] == 0x01 && frame[3] == 0)
     {
-      Device.Req.OffOneRelay++;
-      OutputOffOne(&Device.Outputs, frame[2]);
+      Device.Req.SetOffOne++;
+      OutputSetOffOne(&Device.Output, frame[2]);
     }
     /*** Set On One Outputs Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x01 && frame[3] == 1)
     {
-      Device.Req.SetOneRealy++;
-      OutputOnOne(&Device.Outputs,frame[2]);
+      Device.Req.SetOnOne++;
+      OutputSetOnOne(&Device.Output,frame[2]);
     }
     /*** Set OFF Several Outputs Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x00)
     {
       Device.Req.SeveralOff++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
-      OutputOffSeveral(&Device.Outputs,temp, frame[7]);
+      OutputOffSeveral(&Device.Output,temp, frame[7]);
     }
     /*** Set ON Several Outputs Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x01)
     {
       Device.Req.SeveralOn++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
-      OutputOnSeveral(&Device.Outputs, temp, frame[7]);
+      OutputOnSeveral(&Device.Output, temp, frame[7]);
     }
-    /*** Toogle Several Relays Request ***/
+    /*** Toogle Several Outputs Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x02)
     {
       Device.Req.SeveralToogle++;
       uint8_t temp[] = {frame[2],frame[3], frame[4], frame[5]};
-      OutputToogleSeveral(&Device.Outputs, temp, frame[7]);
+      OutputToogleSeveral(&Device.Output, temp, frame[7]);
     }
     /*** Status Request  ***/
     else if(frame[0] == CARD_TYPE && frame[1] == 0x04 && frame[2] == 0x01)
     {
       Device.Req.Status++;
       Device.StatusAutoSendEnable = frame[2];
-      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
+      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
     }
     /*** Host Start Request ***/
     else if(frame[0] == CARD_TYPE && frame [1] == 0xEE && frame[2] == 0x11)
@@ -258,17 +258,17 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     else if(frame[0] == CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x06)
     {
       Device.Req.Reset++;
-      OutputReset(&Device.Outputs);
-      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
+      OutputReset(&Device.Output);
+      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
     }
     /*Outputs Counter Reset Request*/
     else if(frame[0] == CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x07)
     {
       Device.Req.ResetRlyCnt++;
       MemoryResetRealyCnt(&Device.Memory);
-      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
+      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
     }
-    /*** Get Realy Counter ***/
+    /*** Get Outputs Counter ***/
     else if(frame[0] == CARD_TYPE && frame[1] == 0xEE && frame[2] == 0x01)
     {
       Device.Req.RelayCounter++;
@@ -322,7 +322,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 void CanRespRlyCnt(uint8_t relaynumber)
 {
   Device.Resp.RelayCounter++;
-  uint32_t value = OutputCounterGet(&Device.Outputs, relaynumber);
+  uint32_t value = OutputCounterGet(&Device.Output, relaynumber);
   uint8_t data[] = { CARD_TYPE, 0xEE, 0x01, relaynumber, 0xFF, 0xFF, 0xFF, 0xFF };
   memcpy(data + sizeof(value), &value, sizeof(value));
   CanRespSend(Device.Address, data, sizeof(data));
@@ -361,7 +361,7 @@ void StatusTask(void)
   {
     if(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) != 0)
     {
-      if(Device.Outputs.ChangedBlocks[block])
+      if(Device.Output.ChangedBlocks[block])
       {
         uint8_t data[] = { CARD_TYPE, 0x04, 0x00, 0x00, 0x00, 0x00, block};
         /* block -> byte index
@@ -371,11 +371,11 @@ void StatusTask(void)
          * 3 -> 12..15
          * 4 -> 16..19
          */
-        memcpy(data + 2, Device.Outputs.CurState + block * OUTPUT_BLOCK_LENGTH, OUTPUT_BLOCK_LENGTH);
+        memcpy(data + 2, Device.Output.CurState + block * OUTPUT_BLOCK_LENGTH, OUTPUT_BLOCK_LENGTH);
 
         if(CanRespSend(Device.Address, data, sizeof(data))== HAL_OK)
         {
-          Device.Outputs.ChangedBlocks[block] = 0;
+          Device.Output.ChangedBlocks[block] = 0;
           Device.Resp.Status++;
         }
       }
@@ -390,7 +390,7 @@ void StatusTask(void)
   {
     block = 0;
     if(Device.StatusAutoSendEnable)
-      OutputChangedBlocksUpdate(&Device.Outputs);
+      OutputChangedBlocksUpdate(&Device.Output);
   }
 }
 
@@ -446,10 +446,10 @@ void DebugTask(void)
     sprintf(buff,"AskAllInfo:    %06lu | GlobalReset:  %06lu | Reset:        %06lu", Device.Req.AskAllInfo, Device.Req.GlobalReset, Device.Req.Reset);
     DeviceConsoleWrite(buff);
     DeviceConsoleWrite(VT100_CUP("17","0"));
-    sprintf(buff,"HostStart:     %06lu | Status:       %06lu | SetOneRealyl: %06lu", Device.Req.HostStart, Device.Req.Status, Device.Req.SetOneRealy);
+    sprintf(buff,"HostStart:     %06lu | Status:       %06lu | SetOneRealyl: %06lu", Device.Req.HostStart, Device.Req.Status, Device.Req.SetOnOne);
     DeviceConsoleWrite(buff);
     DeviceConsoleWrite(VT100_CUP("18","0"));
-    sprintf(buff,"OffOneRelay:   %06lu | SeveralOn:    %06lu | SeveralOff:   %06lu", Device.Req.OffOneRelay, Device.Req.SeveralOn, Device.Req.SeveralOff);
+    sprintf(buff,"OffOneRelay:   %06lu | SeveralOn:    %06lu | SeveralOff:   %06lu", Device.Req.SetOffOne, Device.Req.SeveralOn, Device.Req.SeveralOff);
     DeviceConsoleWrite(buff);
     DeviceConsoleWrite(VT100_CUP("19","0"));
     sprintf(buff,"SeveralToogle: %06lu | RelayCounter: %06lu | SerialNumber: %06lu", Device.Req.SeveralToogle, Device.Req.RelayCounter, Device.Req.SerialNumber);
@@ -552,7 +552,7 @@ int main(void)
   {
     for(uint8_t i=0; i < OUTPUT_ARRAY; i++)
     {
-      Device.Outputs.Counters[i]=Device.Memory.RealyCounters[i];
+      Device.Output.Counters[i]=Device.Memory.RealyCounters[i];
     }
   }
   DeviceUsrLog("SerialNumber:%lu, BootUpCounter:%lu", Device.Memory.SerialNumber, Device.Memory.BootUpCounter);
@@ -566,9 +566,9 @@ int main(void)
   }
 
   /*** Defaults ***/
-  OutputReset(&Device.Outputs);
+  OutputReset(&Device.Output);
   OutputEnable();
-  memset(Device.Outputs.ChangedBlocks,0x00, OUTPUT_MAX_BLOCK);
+  memset(Device.Output.ChangedBlocks,0x00, OUTPUT_MAX_BLOCK);
   Device.Address = GetAddress();
   Device.Version = DEVICE_FW;
   Device.CanSpeed = &CanSpeeds[GetSpeed()];
