@@ -22,7 +22,7 @@
 /* Exported types ------------------------------------------------------------*/
 typedef struct _MemoryTypeDef
 {
-  uint32_t RealyCounters[DEVICE_RELAY_COUNT];
+  uint32_t RealyCounters[DEVICE_OUTPUT_COUNT];
   uint32_t RealyCounterAddr;
   uint32_t BootUpCounter;
   uint32_t BootUpCounterAddr;

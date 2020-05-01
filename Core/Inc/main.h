@@ -1,5 +1,10 @@
 /* USER CODE BEGIN Header */
-
+/*
+ * main.h
+ *
+ *  Created on: 2020. márc. 6.
+ *      Author: Margit Robert
+ */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -126,11 +131,11 @@ void DeviceConsoleWrite(char *str);
 #if (CARD_TYPE == 0x15)
   #define DEVICE_NAME           "MALT160T"
   #define DEVICE_PCB            "00"
-  #define DEVICE_RELAY_COUNT    160
+  #define DEVICE_OUTPUT_COUNT    160
 #elif(CARD_TYPE == 0x03)
   #define DEVICE_NAME           "MALT132"
   #define DEVICE_PCB            "00"
-  #define DEVICE_RELAY_COUNT    32
+  #define DEVICE_OUTPUT_COUNT    32
 #endif
 
 #define CARD_RX_ADDRESS     0x15510000
@@ -139,9 +144,9 @@ void DeviceConsoleWrite(char *str);
 #define DEVICE_SN_SIZE      3
 
 #ifndef DEBUG
-  #define DEVICE_FW           0x0100
+  #define DEVICE_FW           0x001A
 #else
-  #define DEVICE_FW           0x010D
+  #define DEVICE_FW           0x001D
 #endif
 
 #define DEVICE_MNF          "AltonTech"
@@ -149,8 +154,10 @@ void DeviceConsoleWrite(char *str);
 #define DEVICE_FW_SIZE      sizeof(DEVICE_FW)
 #define DEVICE_PCB_SIZE     sizeof(DEVICE_PCB)
 #define DEVICE_MNF_SIZE     sizeof(DEVICE_MNF)
+
 #define DEVICE_OK           0
 #define DEVICE_FAIL         1
+
 #define DEVICE_FAIL_LED     0
 #define DEVICE_STR_SIZE     80
 

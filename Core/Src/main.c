@@ -1,8 +1,14 @@
 /* USER CODE BEGIN Header */
-
+/*
+ * main.c
+ *
+ *  Created on: 2020. márc. 6.
+ *      Author: Margit Robert
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+#include <outputs.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -11,7 +17,6 @@
 #include <string.h>
 #include "common.h"
 #include "LiveLed.h"
-#include "relays.h"
 #include "memory.h"
 /* USER CODE END Includes */
 
@@ -32,7 +37,7 @@ typedef struct _AppTypeDef
   uint8_t Address;
   uint16_t Version;
   MemoryTypeDef Memory;
-  RelayTypeDef Relay;
+  OutputTypeDef Outputs;
   CanBusSpeedTypeDef *CanSpeed;
   uint8_t StatusAutoSendEnable;
 
@@ -107,7 +112,6 @@ UART_HandleTypeDef huart1;
 DeviceTypeDef Device;
 LiveLED_HnadleTypeDef hLiveLed;
 LedHandle_Type        hLed;
-uint8_t SerialSendEnable = 0;
 
 CanBusSpeedTypeDef CanSpeeds[] =
 /*  Baud,       Div,  BS1,            BS2,            JSW         */
@@ -117,6 +121,7 @@ CanBusSpeedTypeDef CanSpeeds[] =
    { 125000,    24,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ },
    { 250000,    12,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ },
 };
+
 
 
 /* USER CODE END PV */
@@ -131,7 +136,7 @@ static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 void LiveLedOff(void);
 void LiveLedOn(void);
-void FeilLedOn(void);
+void FailLedOn(void);
 void FailLedOff(void);
 
 void DebugTask(void);
@@ -143,12 +148,11 @@ void CanAskAllInfoResponse();
 void CanRespRlyCnt(uint8_t relaynumber);
 HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size);
 void StatusTask(void);
-void TestMsgSenderTask(void);
-
 
 LedItem_Type LedList[1] = {
-  { DEVICE_FAIL_LED,  &FeilLedOn,   &FailLedOff, },
+  { DEVICE_FAIL_LED,  &FailLedOn,   &FailLedOff, },
 };
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -173,10 +177,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
       Device.Req.AskAllInfo ++;
       CanAskAllInfoResponse();
-      for(uint8_t i=0; i < DEVICE_RELAY_COUNT; i++)
+      for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
       {
         Device.Status.MemSaved++;
-        Device.Memory.RealyCounters[i] = Device.Relay.Counters[i];
+        Device.Memory.RealyCounters[i] = Device.Outputs.Counters[i];
       }
       if(Device.Status.MemFail == 0)
       {
@@ -192,8 +196,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     else if(memcmp(frame, (uint8_t[]){0xAA, 0xFF}, 2)==0)
     {
       Device.Req.GlobalReset++;
-      RelayReset(&Device.Relay);
-      memset(Device.Relay.ChangedBlocks,0x01,RELAY_MAX_BLOCK);
+      OutputReset(&Device.Outputs);
+      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
       CanAskAllInfoResponse();
     }
     else
@@ -203,45 +207,45 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
   if(rxHeader.ExtId == (CARD_RX_ADDRESS | CARD_TYPE << 8 | Device.Address))
   {
-    /*** Set Off One Relay Request ***/
+    /*** Set Off One Outputs Request ***/
     if(frame[0]== CARD_TYPE && frame[1] == 0x01 && frame[3] == 0)
     {
       Device.Req.OffOneRelay++;
-      RelayOffOne(&Device.Relay, frame[2]);
+      OutputOffOne(&Device.Outputs, frame[2]);
     }
-    /*** Set On One Relay Request ***/
+    /*** Set On One Outputs Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x01 && frame[3] == 1)
     {
       Device.Req.SetOneRealy++;
-      RelayOnOne(&Device.Relay,frame[2]);
+      OutputOnOne(&Device.Outputs,frame[2]);
     }
-    /*** Set OFF Several Relay Request ***/
+    /*** Set OFF Several Outputs Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x00)
     {
       Device.Req.SeveralOff++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
-      RelayOffSeveral(&Device.Relay,temp, frame[7]);
+      OutputOffSeveral(&Device.Outputs,temp, frame[7]);
     }
-    /*** Set ON Several Relay Request ***/
+    /*** Set ON Several Outputs Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x01)
     {
       Device.Req.SeveralOn++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
-      RelayOnSeveral(&Device.Relay, temp, frame[7]);
+      OutputOnSeveral(&Device.Outputs, temp, frame[7]);
     }
     /*** Toogle Several Relays Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x02)
     {
       Device.Req.SeveralToogle++;
       uint8_t temp[] = {frame[2],frame[3], frame[4], frame[5]};
-      RelayToogleSeveral(&Device.Relay, temp, frame[7]);
+      OutputToogleSeveral(&Device.Outputs, temp, frame[7]);
     }
     /*** Status Request  ***/
     else if(frame[0] == CARD_TYPE && frame[1] == 0x04 && frame[2] == 0x01)
     {
       Device.Req.Status++;
       Device.StatusAutoSendEnable = frame[2];
-      memset(Device.Relay.ChangedBlocks,0x01,RELAY_MAX_BLOCK);
+      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
     }
     /*** Host Start Request ***/
     else if(frame[0] == CARD_TYPE && frame [1] == 0xEE && frame[2] == 0x11)
@@ -254,15 +258,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     else if(frame[0] == CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x06)
     {
       Device.Req.Reset++;
-      RelayReset(&Device.Relay);
-      memset(Device.Relay.ChangedBlocks,0x01,RELAY_MAX_BLOCK);
+      OutputReset(&Device.Outputs);
+      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
     }
-    /*Relay Counter Reset Request*/
+    /*Outputs Counter Reset Request*/
     else if(frame[0] == CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x07)
     {
       Device.Req.ResetRlyCnt++;
       MemoryResetRealyCnt(&Device.Memory);
-      memset(Device.Relay.ChangedBlocks,0x01,RELAY_MAX_BLOCK);
+      memset(Device.Outputs.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
     }
     /*** Get Realy Counter ***/
     else if(frame[0] == CARD_TYPE && frame[1] == 0xEE && frame[2] == 0x01)
@@ -318,7 +322,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 void CanRespRlyCnt(uint8_t relaynumber)
 {
   Device.Resp.RelayCounter++;
-  uint32_t value = RelayCounterGet(&Device.Relay, relaynumber);
+  uint32_t value = OutputCounterGet(&Device.Outputs, relaynumber);
   uint8_t data[] = { CARD_TYPE, 0xEE, 0x01, relaynumber, 0xFF, 0xFF, 0xFF, 0xFF };
   memcpy(data + sizeof(value), &value, sizeof(value));
   CanRespSend(Device.Address, data, sizeof(data));
@@ -353,11 +357,11 @@ void StatusTask(void)
 {
   static uint8_t block = 0;
 
-  if(block < RELAY_MAX_BLOCK)
+  if(block < OUTPUT_MAX_BLOCK)
   {
     if(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) != 0)
     {
-      if(Device.Relay.ChangedBlocks[block])
+      if(Device.Outputs.ChangedBlocks[block])
       {
         uint8_t data[] = { CARD_TYPE, 0x04, 0x00, 0x00, 0x00, 0x00, block};
         /* block -> byte index
@@ -367,11 +371,11 @@ void StatusTask(void)
          * 3 -> 12..15
          * 4 -> 16..19
          */
-        memcpy(data + 2, Device.Relay.CurState + block * RELAY_BLOCK_LENGTH, RELAY_BLOCK_LENGTH);
+        memcpy(data + 2, Device.Outputs.CurState + block * OUTPUT_BLOCK_LENGTH, OUTPUT_BLOCK_LENGTH);
 
         if(CanRespSend(Device.Address, data, sizeof(data))== HAL_OK)
         {
-          Device.Relay.ChangedBlocks[block] = 0;
+          Device.Outputs.ChangedBlocks[block] = 0;
           Device.Resp.Status++;
         }
       }
@@ -386,7 +390,7 @@ void StatusTask(void)
   {
     block = 0;
     if(Device.StatusAutoSendEnable)
-      RelayChangedBlocksUpdate(&Device.Relay);
+      OutputChangedBlocksUpdate(&Device.Outputs);
   }
 }
 
@@ -546,25 +550,25 @@ int main(void)
   }
   else
   {
-    for(uint8_t i=0; i < RELAY_ARRAY; i++)
+    for(uint8_t i=0; i < OUTPUT_ARRAY; i++)
     {
-      Device.Relay.Counters[i]=Device.Memory.RealyCounters[i];
+      Device.Outputs.Counters[i]=Device.Memory.RealyCounters[i];
     }
   }
   DeviceUsrLog("SerialNumber:%lu, BootUpCounter:%lu", Device.Memory.SerialNumber, Device.Memory.BootUpCounter);
 
-  /*** Relay Driver Test ***/
-  if(RelayDriverLoopTest()!= RELAY_OK)
+  /*** Outputs Driver Test ***/
+  if(OutputDriverLoopTest()!= RELAY_OK)
   {
     LedShowCode(&hLed, DEVICE_FAIL_LED, FAIL_LED_RLY_DRV);
     Device.SelfTest.DriverLoopState = 1;
-    DeviceErrLog("RelayDriverLoopTest: FAIL");
+    DeviceErrLog("OutputDriverLoopTest: FAIL");
   }
 
   /*** Defaults ***/
-  RelayReset(&Device.Relay);
-  RelayEnable();
-  memset(Device.Relay.ChangedBlocks,0x00, RELAY_MAX_BLOCK);
+  OutputReset(&Device.Outputs);
+  OutputEnable();
+  memset(Device.Outputs.ChangedBlocks,0x00, OUTPUT_MAX_BLOCK);
   Device.Address = GetAddress();
   Device.Version = DEVICE_FW;
   Device.CanSpeed = &CanSpeeds[GetSpeed()];
@@ -929,7 +933,7 @@ void LiveLedOff(void)
   HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
 }
 
-void FeilLedOn(void)
+void FailLedOn(void)
 {
   HAL_GPIO_WritePin(FAIL_LED_GPIO_Port, FAIL_LED_Pin, GPIO_PIN_RESET);
 }

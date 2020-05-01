@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
+#include <outputs.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "relays.h"
 #include "memory.h"
 #include "string.h"
 #include "Led.h"
@@ -20,7 +20,7 @@
 uint8_t MemoryInit(MemoryTypeDef *mem)
 {
   mem->RealyCounterAddr = 0;
-  mem->BootUpCounterAddr = sizeof(mem->RealyCounters[0]) * DEVICE_RELAY_COUNT;
+  mem->BootUpCounterAddr = sizeof(mem->RealyCounters[0]) * DEVICE_OUTPUT_COUNT;
   mem->SerialNumberAddr = mem->BootUpCounterAddr + sizeof(mem->BootUpCounter);
   mem->FirstStartCheckNumberAddr = mem->SerialNumberAddr + sizeof(mem->SerialNumber);
   mem->RealyCounterSaveRequiedFlag = 0;
@@ -41,7 +41,7 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
   if(memcmp(mem->FirstStartCheck, MEM_FIRST_CHECK_CONTENT, sizeof(MEM_FIRST_CHECK_CONTENT))!=0 )
   {
      DeviceDbgLog("Device is running in _FIRST START_ sequence...");
-     for(int i=0; i < DEVICE_RELAY_COUNT; i++)
+     for(int i=0; i < DEVICE_OUTPUT_COUNT; i++)
         mem->RealyCounters[i]=0;
      mem->BootUpCounter = 0;
 
@@ -59,7 +59,7 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
     DeviceDbgLog("Device is running in _REGULAR START_ sequence...");
     /*** Read Counters ***/
     uint16_t address = 0;
-    for(uint8_t rly=0; rly < DEVICE_RELAY_COUNT; rly++)
+    for(uint8_t rly=0; rly < DEVICE_OUTPUT_COUNT; rly++)
     {
       address = sizeof(mem->RealyCounters[0]) * rly; //K1:0 = 0x00000000
       if((status = MemoryLowRead(address, &mem->RealyCounters[rly],sizeof(mem->RealyCounters[0])))!= HAL_OK)
@@ -102,7 +102,7 @@ uint32_t MemoryChangeSerailNumber(MemoryTypeDef *mem, uint32_t serialnumber)
 
 void MemoryResetRealyCnt(MemoryTypeDef *mem)
 {
-  for(uint8_t i=0; i<RELAY_ARRAY; i++)
+  for(uint8_t i=0; i<OUTPUT_ARRAY; i++)
     mem->RealyCounters[i]=0;
 }
 
@@ -115,7 +115,7 @@ void MemoryTask(MemoryTypeDef *mem)
   {
     timestamp = HAL_GetTick();
 
-    for(uint8_t rly = 0; rly < DEVICE_RELAY_COUNT; rly++)
+    for(uint8_t rly = 0; rly < DEVICE_OUTPUT_COUNT; rly++)
     {
       uint16_t address = sizeof(mem->RealyCounters[0]) * rly;
       status = MemoryLowWrite(address, &mem->RealyCounters[rly], sizeof(mem->RealyCounters[0]));
