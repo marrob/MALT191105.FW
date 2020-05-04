@@ -35,7 +35,11 @@ typedef struct _CanBusSpeedType
 typedef struct _AppTypeDef
 {
   uint8_t Address;
+  int8_t Name[DEVICE_NAME_SIZE];
   uint16_t Version;
+  uint8_t CardType;
+  uint8_t Options;
+  uint32_t SerialNumber;
   MemoryTypeDef Memory;
   OutputTypeDef Output;
   CanBusSpeedTypeDef *CanSpeed;
@@ -56,7 +60,6 @@ typedef struct _AppTypeDef
   struct _requestCounters
   {
     uint32_t AskAllInfo;
-    uint32_t GlobalReset;
     uint32_t Reset;
     uint32_t HostStart;
     uint32_t Status;
@@ -173,39 +176,41 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   else if (rxHeader.ExtId == HOST_ADDRESS )
   {
     /*** Ask All Info Request ***/
-    if(memcmp(frame, (uint8_t[]){0xAB, 0xFF}, 2)==0)
+    if(frame[0] == 0xAB)
     {
-      Device.Req.AskAllInfo ++;
-      CanAskAllInfoResponse();
-      for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+      if(frame[1] == Device.Address || frame[1] == 0xFF)
       {
-        Device.Status.MemSaved++;
-        Device.Memory.RealyCounters[i] = Device.Output.Counters[i];
-      }
-      if(Device.Status.MemFail == 0)
-      {
-        MemorySave(&Device.Memory);
-      }
-      else
-      {
-        Device.Status.MemFail++;
+        Device.Req.AskAllInfo ++;
+        CanAskAllInfoResponse();
+        for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+        {
+          Device.Status.MemSaved++;
+          Device.Memory.Counters[i] = Device.Output.Counters[i];
+        }
+        if(Device.Status.MemFail == 0)
+        {
+          MemorySave(&Device.Memory);
+        }
+        else
+        {
+          Device.Status.MemFail++;
+        }
       }
     }
-
-    /*** Global Reset Request ***/
-    else if(memcmp(frame, (uint8_t[]){0xAA, 0xFF}, 2)==0)
+    /*** Modul Reset Request ***/
+    else if(frame[0] == 0xAA)
     {
-      Device.Req.GlobalReset++;
-      OutputReset(&Device.Output);
-      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
-      CanAskAllInfoResponse();
+      if(frame[1] == Device.Address || frame[1] == 0xFF )
+      {
+        HAL_NVIC_SystemReset();
+      }
     }
     else
     {
       Device.Status.UnknownFrame++;
     }
   }
-  if(rxHeader.ExtId == (CARD_RX_ADDRESS | CARD_TYPE << 8 | Device.Address))
+  else if(rxHeader.ExtId == (CARD_RX_ADDRESS | CARD_TYPE << 8 | Device.Address))
   {
     /*** Set Off One Outputs Request ***/
     if(frame[0]== CARD_TYPE && frame[1] == 0x01 && frame[3] == 0)
@@ -245,7 +250,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
       Device.Req.Status++;
       Device.StatusAutoSendEnable = frame[2];
-      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
+      memset(Device.Output.ChangedBlocks, 0x01, OUTPUT_MAX_BLOCK);
     }
     /*** Host Start Request ***/
     else if(frame[0] == CARD_TYPE && frame [1] == 0xEE && frame[2] == 0x11)
@@ -265,7 +270,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     else if(frame[0] == CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x07)
     {
       Device.Req.ResetRlyCnt++;
-      MemoryResetRealyCnt(&Device.Memory);
+      MemoryResetCounters(&Device.Memory);
       memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
     }
     /*** Get Outputs Counter ***/
@@ -443,7 +448,7 @@ void DebugTask(void)
     sprintf(buff, "---REQUESTS-----------------------------------------------------------");
     DeviceConsoleWrite(buff);
     DeviceConsoleWrite(VT100_CUP("16","0"));
-    sprintf(buff,"AskAllInfo:    %06lu | GlobalReset:  %06lu | Reset:        %06lu", Device.Req.AskAllInfo, Device.Req.GlobalReset, Device.Req.Reset);
+    sprintf(buff,"AskAllInfo:    %06lu | Reset:        %06lu", Device.Req.AskAllInfo, Device.Req.Reset);
     DeviceConsoleWrite(buff);
     DeviceConsoleWrite(VT100_CUP("17","0"));
     sprintf(buff,"HostStart:     %06lu | Status:       %06lu | SetOneRealyl: %06lu", Device.Req.HostStart, Device.Req.Status, Device.Req.SetOnOne);
@@ -532,7 +537,7 @@ int main(void)
   HAL_I2C_Master_Transmit(&hi2c2, 0xFF, dummy, sizeof(dummy), 100  );
 
   MemoryInit(&Device.Memory);
-  if(MemoryTest() != MEM_OK)
+  if(MemoryTest(&Device.Memory) != MEM_OK)
   {
     Device.SelfTest.MemoryState = 1;
     Device.Status.MemFail++;
@@ -540,7 +545,7 @@ int main(void)
     LedShowCode(&hLed, DEVICE_FAIL_LED, FAIL_LED_MEM_TEST);
   }
 
-  //MemoryReset(&Device.Memory);
+  /*MemoryReset(&Device.Memory);*/
 
   if(MemoryLoad(&Device.Memory)!= MEM_OK)
   {
@@ -550,15 +555,25 @@ int main(void)
   }
   else
   {
-    for(uint8_t i=0; i < OUTPUT_ARRAY; i++)
-    {
-      Device.Output.Counters[i]=Device.Memory.RealyCounters[i];
-    }
+    /*** EEPROM LOAD ***/
+#if DEVICE_UNI_FW
+    memcpy(Device.Name, Device.Memory.Name, DEVICE_NAME_SIZE);
+    Device.CardType = Device.Memory.CardType;
+    Device.Options = Device.Memory.Options;
+    Device.Output.Count = Device.Memory.OutputsCount;
+    Device.SerialNumber = Device.Memory.SerialNumber;
+
+    for(uint8_t i=0; i < Device.Output.Count; i++)
+      Device.Output.Counters[i]=Device.Memory.Counters[i];
+#else
+    for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+      Device.Output.Counters[i]=Device.Memory.Counters[i];
+#endif
   }
   DeviceUsrLog("SerialNumber:%lu, BootUpCounter:%lu", Device.Memory.SerialNumber, Device.Memory.BootUpCounter);
 
-  /*** Outputs Driver Test ***/
-  if(OutputDriverLoopTest()!= RELAY_OK)
+  /*** OutputsCount Driver Test ***/
+  if(OutputDriverLoopTest()!= OUTPUT_OK)
   {
     LedShowCode(&hLed, DEVICE_FAIL_LED, FAIL_LED_RLY_DRV);
     Device.SelfTest.DriverLoopState = 1;
@@ -568,7 +583,7 @@ int main(void)
   /*** Defaults ***/
   OutputReset(&Device.Output);
   OutputEnable();
-  memset(Device.Output.ChangedBlocks,0x00, OUTPUT_MAX_BLOCK);
+  memset(Device.Output.ChangedBlocks, 0x00, OUTPUT_MAX_BLOCK);
   Device.Address = GetAddress();
   Device.Version = DEVICE_FW;
   Device.CanSpeed = &CanSpeeds[GetSpeed()];

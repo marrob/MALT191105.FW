@@ -13,8 +13,8 @@
 #include "common.h"
 
 /* Private defines -----------------------------------------------------------*/
-#define RELAY_OK            0
-#define RELAY_FAIL          1
+#define OUTPUT_OK            0
+#define OUTPUT_FAIL          1
 
 
 
@@ -25,7 +25,9 @@
 
 
 /* Exported types ------------------------------------------------------------*/
-typedef struct {
+typedef struct
+{
+  uint32_t Count;
   uint8_t PreState[OUTPUT_ARRAY];
   uint8_t PreBlockState[OUTPUT_ARRAY];
   uint8_t CurState[OUTPUT_ARRAY];

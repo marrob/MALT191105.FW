@@ -144,13 +144,13 @@ void DeviceConsoleWrite(char *str);
 #define DEVICE_SN_SIZE      3
 
 #ifndef DEBUG
-  #define DEVICE_FW           0x001A
+  #define DEVICE_FW           0x004A
 #else
-  #define DEVICE_FW           0x001D
+  #define DEVICE_FW           0x004D
 #endif
 
 #define DEVICE_MNF          "AltonTech"
-#define DEVICE_NAME_SIZE    sizeof(DEVICE_NAME)
+#define DEVICE_NAME_SIZE    32
 #define DEVICE_FW_SIZE      sizeof(DEVICE_FW)
 #define DEVICE_PCB_SIZE     sizeof(DEVICE_PCB)
 #define DEVICE_MNF_SIZE     sizeof(DEVICE_MNF)

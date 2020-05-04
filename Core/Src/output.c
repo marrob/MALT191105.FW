@@ -212,8 +212,8 @@ uint8_t OutputDriverLoopTest(void)
 
   HAL_SPI_TransmitReceive(&hspi2, testvector, result, OUTPUT_DIRVERS_CNT * 2, 100);
   if(memcmp(testvector, result + OUTPUT_DIRVERS_CNT, OUTPUT_DIRVERS_CNT) == 0)
-    return RELAY_OK;
+    return OUTPUT_OK;
   else
-    return RELAY_FAIL;
+    return OUTPUT_FAIL;
 }
 
