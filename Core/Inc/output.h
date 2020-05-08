@@ -21,7 +21,7 @@
 #define OUTPUT_DIRVERS_CNT     DEVICE_OUTPUT_COUNT/8
 #define OUTPUT_ARRAY           DEVICE_OUTPUT_COUNT/8  /*160db/8= 20, 32db/8 = 4 */
 #define OUTPUT_MAX_BLOCK       DEVICE_OUTPUT_COUNT/8/4
-#define OUTPUT_BLOCK_LENGTH    4
+#define OUTPUT_BLOCK_SIZE    4
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -38,12 +38,12 @@ typedef struct
 
 void OutputEnable(void);
 
-void OutputSetOnOne(OutputTypeDef *h, uint8_t k);
-void OutputSetOffOne(OutputTypeDef *h, uint8_t k);
+void OutpuOneOn(OutputTypeDef *h, uint8_t k);
+void OutputOneOff(OutputTypeDef *h, uint8_t k);
 
 void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);
 void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);
-void OutputToogleSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);
+void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block);
 
 uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber);
 void OutputChangedBlocksUpdate(OutputTypeDef *h);

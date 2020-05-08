@@ -79,7 +79,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
-void DeviceConsoleWrite(char *str);
+void ConsoleWrite(char *str);
 
 /* USER CODE END EFP */
 
@@ -129,24 +129,25 @@ void DeviceConsoleWrite(char *str);
 
 /* Generic  -------------------------------------------------------------------*/
 #if (CARD_TYPE == 0x15)
-  #define DEVICE_NAME           "MALT160T"
-  #define DEVICE_PCB            "00"
-  #define DEVICE_OUTPUT_COUNT    160
+  #define DEVICE_NAME                 "MALT160T"
+  #define DEVICE_PCB                  "00"
+  #define DEVICE_OUTPUT_COUNT         160
 #elif(CARD_TYPE == 0x03)
-  #define DEVICE_NAME           "MALT132"
-  #define DEVICE_PCB            "00"
-  #define DEVICE_OUTPUT_COUNT    32
+  #define DEVICE_NAME                 "MALT132"
+  #define DEVICE_PCB                  "00"
+  #define DEVICE_OUTPUT_COUNT         32
 #endif
 
-#define CARD_RX_ADDRESS     0x15510000
-#define CARD_TX_ADDRESS     0x15520000
-#define HOST_ADDRESS        0x1558FFFF
-#define DEVICE_SN_SIZE      3
+#define CARD_RX_ADDRESS             0x15510000
+#define CARD_TX_ADDRESS             0x15520000
+#define HOST_ADDRESS                0x1558FFFF
+#define DEVICE_SN_SIZE              3
+#define DEVICE_DELAY_STATUS_TX_MS   5
 
 #ifndef DEBUG
-  #define DEVICE_FW           0x004A
+  #define DEVICE_FW           0x005A
 #else
-  #define DEVICE_FW           0x004D
+  #define DEVICE_FW           0x005D
 #endif
 
 #define DEVICE_MNF          "AltonTech"

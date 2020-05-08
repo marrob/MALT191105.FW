@@ -17,7 +17,7 @@ static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter);
 /*
  * k: 0..DEVICE_OUTPUT_COUNT-1
  */
-void OutputSetOnOne(OutputTypeDef *h, uint8_t k)
+void OutpuOneOn(OutputTypeDef *h, uint8_t k)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
   uint8_t temp[OUTPUT_ARRAY];
@@ -32,7 +32,7 @@ void OutputSetOnOne(OutputTypeDef *h, uint8_t k)
 /*
  * k: 0..DEVICE_OUTPUT_COUNT-1
  */
-void OutputSetOffOne(OutputTypeDef *h, uint8_t k)
+void OutputOneOff(OutputTypeDef *h, uint8_t k)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
   uint8_t temp[OUTPUT_ARRAY];
@@ -46,22 +46,17 @@ void OutputSetOffOne(OutputTypeDef *h, uint8_t k)
   Update(h->CurState);
 }
 
-void OutputToogleSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
+void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  for(uint8_t i=0; i<OUTPUT_BLOCK_LENGTH; i++)
+  for(uint8_t i = 0; i < OUTPUT_BLOCK_SIZE; i++)
   {
     if(several[i])
     { /*csak tooglezunk amelyik bájtvan volt 1-es*/
-      if(several[i] & h->CurState[block * OUTPUT_BLOCK_LENGTH + i])
-      {
-        h->CurState[block * OUTPUT_BLOCK_LENGTH + i] &= ~several[i];
-      }
+      if(several[i] & h->CurState[block * OUTPUT_BLOCK_SIZE + i])
+        h->CurState[block * OUTPUT_BLOCK_SIZE + i] &= ~several[i];
       else
-      {
-        h->CurState[block * OUTPUT_BLOCK_LENGTH + i] |= several[i];
-      }
-      break;
+        h->CurState[block * OUTPUT_BLOCK_SIZE + i] |= several[i];
     }
   }
   CounterUpdate(h->PreState, h->CurState, h->Counters);
@@ -76,8 +71,8 @@ void OutputToogleSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  for(uint8_t i=0; i < OUTPUT_BLOCK_LENGTH; i++)
-    h->CurState[block * OUTPUT_BLOCK_LENGTH + i] &= ~several[i];
+  for(uint8_t i=0; i < OUTPUT_BLOCK_SIZE; i++)
+    h->CurState[block * OUTPUT_BLOCK_SIZE + i] &= ~several[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
   Update(h->CurState);
 }
@@ -85,8 +80,8 @@ void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  for(uint8_t i=0; i < OUTPUT_BLOCK_LENGTH; i++)
-    h->CurState[block * OUTPUT_BLOCK_LENGTH + i] |= several[i];
+  for(uint8_t i=0; i < OUTPUT_BLOCK_SIZE; i++)
+    h->CurState[block * OUTPUT_BLOCK_SIZE + i] |= several[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
   Update(h->CurState);
 }
@@ -152,14 +147,24 @@ void Update(uint8_t *state)
 void OutputChangedBlocksUpdate(OutputTypeDef *h)
 {
   uint8_t dif[OUTPUT_ARRAY];
- //
+
   for(uint8_t i = 0; i < OUTPUT_ARRAY; i++)
   {
     dif[i] = h->PreBlockState[i] ^ h->CurState[i];
     if(dif[i])
     {
-      /*Az i/4-blockban volt változás*/
-      h->ChangedBlocks[i/4] = 1;
+
+      /*
+       * pl 160relé setén az OUTPUT_ARRAY 160/8 = 20 bájt
+       * egy OUTPUT_BLOCK_SIZE ban 4 bájt van, ezért 4db
+       * üzenteben lehet kiükldeni az összes változást.
+       * De csak azt a blokkot küldjük ki, ahol a változás történt
+       * ChangedBlocks indexei azokat a blokkat jelölik
+       * amiket ki kell küldeni
+       */
+
+      /*Az i/4-blockban volt változás mivel egy blokban 4bajt van*/
+      h->ChangedBlocks[i/OUTPUT_BLOCK_SIZE] = 1;
       /*Tudomasul vettük a változást*/
       h->PreBlockState[i] = h->CurState[i];
     }

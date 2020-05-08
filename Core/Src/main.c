@@ -18,6 +18,7 @@
 #include "common.h"
 #include "LiveLed.h"
 #include "memory.h"
+#include "StringPlus.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -30,6 +31,7 @@ typedef struct _CanBusSpeedType
   uint32_t BS1;
   uint32_t BS2;
   uint32_t SJW;
+  uint8_t  StatusTxDelayMs;
 }CanBusSpeedTypeDef;
 
 typedef struct _AppTypeDef
@@ -52,9 +54,11 @@ typedef struct _AppTypeDef
     uint32_t UnknownFrame;
     uint32_t CanTx;
     uint32_t CanTxErr;
+    uint32_t CanTxNoMailBox;
     uint32_t MemFail;
     uint32_t MemSaved;
     uint32_t MainCycleTime;
+    uint32_t UpTimeSec;
   }Status;
 
   struct _requestCounters
@@ -63,8 +67,8 @@ typedef struct _AppTypeDef
     uint32_t Reset;
     uint32_t HostStart;
     uint32_t Status;
-    uint32_t SetOnOne;
-    uint32_t SetOffOne;
+    uint32_t OneOn;
+    uint32_t OneOff;
     uint32_t SeveralOn;
     uint32_t SeveralOff;
     uint32_t SeveralToogle;
@@ -117,12 +121,12 @@ LiveLED_HnadleTypeDef hLiveLed;
 LedHandle_Type        hLed;
 
 CanBusSpeedTypeDef CanSpeeds[] =
-/*  Baud,       Div,  BS1,            BS2,            JSW         */
+/*  Baud,       Div,  BS1,            BS2,            JSW          StatusTxDelayMs */
 {
-   {  50000,    60,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ },
-   { 100000,    30,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ },
-   { 125000,    24,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ },
-   { 250000,    12,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ },
+   {  50000,    60,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ, 38 },
+   { 100000,    30,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ, 27 },
+   { 125000,    24,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ, 16 },
+   { 250000,    12,   CAN_BS1_8TQ,    CAN_BS2_3TQ,    CAN_SJW_4TQ, 5 },
 };
 
 
@@ -149,8 +153,9 @@ uint8_t GetSpeed(void);
 static void CanInit(CanBusSpeedTypeDef *speed);
 void CanAskAllInfoResponse();
 void CanRespRlyCnt(uint8_t relaynumber);
-HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size);
+static HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size);
 void StatusTask(void);
+void UpTimeIncrementTask(void);
 
 LedItem_Type LedList[1] = {
   { DEVICE_FAIL_LED,  &FailLedOn,   &FailLedOff, },
@@ -182,13 +187,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       {
         Device.Req.AskAllInfo ++;
         CanAskAllInfoResponse();
+
         for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
         {
-          Device.Status.MemSaved++;
           Device.Memory.Counters[i] = Device.Output.Counters[i];
         }
         if(Device.Status.MemFail == 0)
         {
+          Device.Status.MemSaved++;
           MemorySave(&Device.Memory);
         }
         else
@@ -212,38 +218,38 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
   else if(rxHeader.ExtId == (CARD_RX_ADDRESS | CARD_TYPE << 8 | Device.Address))
   {
-    /*** Set Off One Outputs Request ***/
+    /*** Set One Off Request ***/
     if(frame[0]== CARD_TYPE && frame[1] == 0x01 && frame[3] == 0)
     {
-      Device.Req.SetOffOne++;
-      OutputSetOffOne(&Device.Output, frame[2]);
+      Device.Req.OneOff++;
+      OutputOneOff(&Device.Output, frame[2]);
     }
-    /*** Set On One Outputs Request ***/
+    /*** Set One On Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x01 && frame[3] == 1)
     {
-      Device.Req.SetOnOne++;
-      OutputSetOnOne(&Device.Output,frame[2]);
+      Device.Req.OneOn++;
+      OutpuOneOn(&Device.Output,frame[2]);
     }
-    /*** Set OFF Several Outputs Request ***/
+    /*** Several Off Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x00)
     {
       Device.Req.SeveralOff++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOffSeveral(&Device.Output,temp, frame[7]);
     }
-    /*** Set ON Several Outputs Request ***/
+    /*** Several On Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x01)
     {
       Device.Req.SeveralOn++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOnSeveral(&Device.Output, temp, frame[7]);
     }
-    /*** Toogle Several Outputs Request ***/
+    /*** Several Toogle Request ***/
     else if(frame[0]== CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x02)
     {
       Device.Req.SeveralToogle++;
       uint8_t temp[] = {frame[2],frame[3], frame[4], frame[5]};
-      OutputToogleSeveral(&Device.Output, temp, frame[7]);
+      OutputSeveralToogle(&Device.Output, temp, frame[7]);
     }
     /*** Status Request  ***/
     else if(frame[0] == CARD_TYPE && frame[1] == 0x04 && frame[2] == 0x01)
@@ -342,7 +348,7 @@ void CanAskAllInfoResponse(void)
   CanRespSend(Device.Address, data, sizeof(data));
 }
 
-HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size)
+ inline static HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size)
 {
   HAL_StatusTypeDef status = HAL_OK;
   CAN_TxHeaderTypeDef   txHeader;
@@ -351,44 +357,78 @@ HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size)
   txHeader.RTR = CAN_RTR_DATA;
   txHeader.IDE = CAN_ID_EXT;
   txHeader.DLC = size;
-  status = HAL_CAN_AddTxMessage(&hcan, &txHeader, frame, &txMailbox);
+  uint8_t buffer[8];
+  memset(buffer,0xAA,sizeof(buffer));
+  memcpy(buffer,frame, size);
+  status = HAL_CAN_AddTxMessage(&hcan, &txHeader, buffer, &txMailbox);
   Device.Status.CanTx++;
   if(status != HAL_OK)
     Device.Status.CanTxErr++;
   return status;
 }
 
+/*
+ * Akimenetek statuszat kuldi, ha tobb block van, akkor csak azt a blokkot kuldi
+ * amiben a változás történt(1 block max 4bájt)
+ * Ha észreveszi hogy nincs szabad MailBox, akkor X ideig vár hogy felszabaduljon.
+ * */
+
+//#define DEBUG_STATUS
+
+#ifdef DEBUG_STATUS
+ uint8_t LastStatusFrame[8];
+#endif
 void StatusTask(void)
 {
   static uint8_t block = 0;
+  static uint32_t lastSentTimestamp = 0;
+#ifdef DEBUG_STATUS
+  char buffer[80];
+#endif
 
   if(block < OUTPUT_MAX_BLOCK)
   {
     if(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) != 0)
     {
-      if(Device.Output.ChangedBlocks[block])
+      if(HAL_GetTick() - lastSentTimestamp >= 10  /*Device.CanSpeed->StatusTxDelayMs*/)
       {
-        uint8_t data[] = { CARD_TYPE, 0x04, 0x00, 0x00, 0x00, 0x00, block};
-        /* block -> byte index
-         * 0 -> 0..3,
-         * 1 -> 4..7
-         * 2 -> 8..11
-         * 3 -> 12..15
-         * 4 -> 16..19
-         */
-        memcpy(data + 2, Device.Output.CurState + block * OUTPUT_BLOCK_LENGTH, OUTPUT_BLOCK_LENGTH);
-
-        if(CanRespSend(Device.Address, data, sizeof(data))== HAL_OK)
+        if(Device.Output.ChangedBlocks[block])
         {
-          Device.Output.ChangedBlocks[block] = 0;
-          Device.Resp.Status++;
+#ifdef DEBUG_STATUS
+          uint8_t data[] = { CARD_TYPE, 0x04, 0x00, 0x00, 0x00, 0x00,  Device.Resp.Status};
+#else
+          uint8_t data[] = { CARD_TYPE, 0x04, 0x00, 0x00, 0x00, 0x00,  block};
+#endif
+          /* block -> byte index
+           * 0 -> 0..3,
+           * 1 -> 4..7
+           * 2 -> 8..11
+           * 3 -> 12..15
+           * 4 -> 16..19
+           */
+          memcpy(data + 2, Device.Output.CurState + block * OUTPUT_BLOCK_SIZE, OUTPUT_BLOCK_SIZE);
+
+          if(CanRespSend(Device.Address, data, sizeof(data))== HAL_OK)
+          {
+
+
+#ifdef DEBUG_STATUS
+            memcpy(LastStatusFrame, data, sizeof(data));
+            StringPlusDataToHexaString(data, buffer, sizeof(data));
+            DeviceDbgLog(buffer);
+#endif
+            Device.Output.ChangedBlocks[block] = 0;
+            Device.Resp.Status++;
+          }
         }
+        block++;
       }
-      block++;
     }
     else
-    {
-      Device.Status.CanTxErr++;
+    {/*No Free Tx MailBox, we have to wait a little bit */
+
+      Device.Status.CanTxNoMailBox++;
+      lastSentTimestamp = HAL_GetTick();
     }
   }
   else
@@ -399,8 +439,21 @@ void StatusTask(void)
   }
 }
 
+
+void UpTimeIncrementTask(void)
+{
+  static int32_t timestamp = 0;
+
+  if((HAL_GetTick() - timestamp) >= 1000)
+  {
+    timestamp = HAL_GetTick();
+    Device.Status.UpTimeSec++;
+  }
+}
+//#undef DEBUG
 void DebugTask(void)
 {
+#ifdef DEBUG
   static uint32_t timestamp;
   static uint8_t status = 0;
   char buff[DEVICE_STR_SIZE];
@@ -411,7 +464,7 @@ void DebugTask(void)
     timestamp = HAL_GetTick();
 
     status++;
-    DeviceConsoleWrite(VT100_CUP("7","1"));
+    ConsoleWrite(VT100_CUP("7","1"));
     if(status == 1)
       sprintf(buff, "-");
     else if(status == 2)
@@ -422,55 +475,56 @@ void DebugTask(void)
       sprintf(buff, "/");
     else
       status = 0;
-    DeviceConsoleWrite(buff);
+    ConsoleWrite(buff);
 
-    DeviceConsoleWrite(VT100_CUP("7","2"));
+    ConsoleWrite(VT100_CUP("7","2"));
     sprintf(buff, "---STATUS-------------------------------------------------------------");
-    DeviceConsoleWrite(buff);
+    ConsoleWrite(buff);
 
-    DeviceConsoleWrite(VT100_CUP("8","0"));
+    ConsoleWrite(VT100_CUP("8","0"));
     sprintf(buff,"CanRx          %06lu | CanRxErr:     %06lu | UnknownFrame: %06lu", Device.Status.CanRx, Device.Status.CanRxErr, Device.Status.UnknownFrame);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("9","0"));
-    sprintf(buff,"CanTx:         %06lu | CanTxErr:     %06lu", Device.Status.CanTx, Device.Status.CanTxErr);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("10","0"));
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("9","0"));
+    sprintf(buff,"CanTx:         %06lu | CanTxErr:     %06lu | UpTimeSec:    %06lu", Device.Status.CanTx, Device.Status.CanTxErr,Device.Status.UpTimeSec);
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("10","0"));
     sprintf(buff,"MemSaved:      %06lu | MemFail:      %06lu | MainCycleRate:%06lu",Device.Status.MemSaved, Device.Status.MemFail, Device.Status.MainCycleTime);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("11","0"));
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("11","0"));
     sprintf(buff,"MemLoadTime:   %04lums | SaveingTime:  %04lums",Device.Memory.LoadTimeMs, Device.Memory.SaveingTimeMs);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("12","0"));
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("12","0"));
     sprintf(buff,"StatusAutoSend:%d      |", Device.StatusAutoSendEnable);
-    DeviceConsoleWrite(buff);
+    ConsoleWrite(buff);
 
-    DeviceConsoleWrite(VT100_CUP("15","0"));
+    ConsoleWrite(VT100_CUP("15","0"));
     sprintf(buff, "---REQUESTS-----------------------------------------------------------");
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("16","0"));
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("16","0"));
     sprintf(buff,"AskAllInfo:    %06lu | Reset:        %06lu", Device.Req.AskAllInfo, Device.Req.Reset);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("17","0"));
-    sprintf(buff,"HostStart:     %06lu | Status:       %06lu | SetOneRealyl: %06lu", Device.Req.HostStart, Device.Req.Status, Device.Req.SetOnOne);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("18","0"));
-    sprintf(buff,"OffOneRelay:   %06lu | SeveralOn:    %06lu | SeveralOff:   %06lu", Device.Req.SetOffOne, Device.Req.SeveralOn, Device.Req.SeveralOff);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("19","0"));
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("17","0"));
+    sprintf(buff,"HostStart:     %06lu | Status:       %06lu | OneOn:        %06lu", Device.Req.HostStart, Device.Req.Status, Device.Req.OneOn);
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("18","0"));
+    sprintf(buff,"OneOff:        %06lu | SeveralOn:    %06lu | SeveralOff:   %06lu", Device.Req.OneOff, Device.Req.SeveralOn, Device.Req.SeveralOff);
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("19","0"));
     sprintf(buff,"SeveralToogle: %06lu | RelayCounter: %06lu | SerialNumber: %06lu", Device.Req.SeveralToogle, Device.Req.RelayCounter, Device.Req.SerialNumber);
-    DeviceConsoleWrite(buff);
-    DeviceConsoleWrite(VT100_CUP("20","0"));
+    ConsoleWrite(buff);
+    ConsoleWrite(VT100_CUP("20","0"));
     sprintf(buff,"ResetRlyCnt:   %06lu |", Device.Req.ResetRlyCnt);
-    DeviceConsoleWrite(buff);
+    ConsoleWrite(buff);
 
-    DeviceConsoleWrite(VT100_CUP("21","0"));
+    ConsoleWrite(VT100_CUP("21","0"));
     sprintf(buff, "---RESPONSE-----------------------------------------------------------");
-    DeviceConsoleWrite(buff);
+    ConsoleWrite(buff);
 
-    DeviceConsoleWrite(VT100_CUP("22","0"));
+    ConsoleWrite(VT100_CUP("22","0"));
     sprintf(buff,"AskAllInfoReq: %06lu | AskAllInfo:   %06lu | RelayCounter: %06lu", Device.Resp.Status, Device.Resp.AskAllInfo, Device.Resp.RelayCounter);
-    DeviceConsoleWrite(buff);
+    ConsoleWrite(buff);
   }
+#endif
 }
 
 
@@ -604,6 +658,7 @@ int main(void)
     DebugTask();
     MemoryTask(&Device.Memory);
     StatusTask();
+    UpTimeIncrementTask();
 
     Device.Status.MainCycleTime = HAL_GetTick() - timestamp;
 
@@ -932,7 +987,7 @@ int _write(int file, char *ptr, int len)
   return len;
 }
 
-void DeviceConsoleWrite(char *str)
+void ConsoleWrite(char *str)
 {
   HAL_UART_Transmit(&huart1, (uint8_t*)str, strlen(str), 100);
 }
