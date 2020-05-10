@@ -114,28 +114,40 @@ void ConsoleWrite(char *str);
 #define RLY_G_GPIO_Port GPIOB
 #define RLY_WR_Pin GPIO_PIN_8
 #define RLY_WR_GPIO_Port GPIOA
+#define EEP_ON_Pin GPIO_PIN_4
+#define EEP_ON_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
-/***CARD_NAME   CARD_TYPE   6TL-OPTIONS***
+/***CARD_NAME   CARD_TYPE   6TL-OPTIONS-ALTON***
  * MALT160T     0x15        0x05
  * MALT132      0x03        0x00
- * MALT23HV     0x03        0x00
+ * MALT23HV     0x03        0x10
  *
  *
  *
  */
 #define CARD_TYPE     0x03
-#define CARD_OPTIONS  0x05
+#define CARD_OPTIONS  0x10
 
 /* Generic  -------------------------------------------------------------------*/
 #if (CARD_TYPE == 0x15)
   #define DEVICE_NAME                 "MALT160T"
   #define DEVICE_PCB                  "00"
   #define DEVICE_OUTPUT_COUNT         160
-#elif(CARD_TYPE == 0x03)
+  #define DEVICE_BLOCK_SIZE           4
+  #define DEVICE_BLOCKS               DEVICE_OUTPUT_COUNT/8/4
+#elif(CARD_TYPE == 0x03 && CARD_OPTIONS == 0)
   #define DEVICE_NAME                 "MALT132"
   #define DEVICE_PCB                  "00"
   #define DEVICE_OUTPUT_COUNT         32
+  #define DEVICE_BLOCK_SIZE           4
+  #define DEVICE_BLOCKS               DEVICE_OUTPUT_COUNT/8/4
+#elif(CARD_TYPE == 0x03 && CARD_OPTIONS == 0x10)
+  #define DEVICE_NAME                 "MALT23TV00"
+  #define DEVICE_PCB                  "00"
+  #define DEVICE_OUTPUT_COUNT         24
+  #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
+  #define DEVICE_BLOCKS               1
 #endif
 
 #define CARD_RX_ADDRESS             0x15510000

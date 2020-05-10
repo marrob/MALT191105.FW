@@ -49,14 +49,14 @@ void OutputOneOff(OutputTypeDef *h, uint8_t k)
 void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  for(uint8_t i = 0; i < OUTPUT_BLOCK_SIZE; i++)
+  for(uint8_t i = 0; i < DEVICE_BLOCK_SIZE; i++)
   {
     if(several[i])
     { /*csak tooglezunk amelyik bájtvan volt 1-es*/
-      if(several[i] & h->CurState[block * OUTPUT_BLOCK_SIZE + i])
-        h->CurState[block * OUTPUT_BLOCK_SIZE + i] &= ~several[i];
+      if(several[i] & h->CurState[block * DEVICE_BLOCK_SIZE + i])
+        h->CurState[block * DEVICE_BLOCK_SIZE + i] &= ~several[i];
       else
-        h->CurState[block * OUTPUT_BLOCK_SIZE + i] |= several[i];
+        h->CurState[block * DEVICE_BLOCK_SIZE + i] |= several[i];
     }
   }
   CounterUpdate(h->PreState, h->CurState, h->Counters);
@@ -71,8 +71,8 @@ void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block)
 void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  for(uint8_t i=0; i < OUTPUT_BLOCK_SIZE; i++)
-    h->CurState[block * OUTPUT_BLOCK_SIZE + i] &= ~several[i];
+  for(uint8_t i=0; i < DEVICE_BLOCK_SIZE; i++)
+    h->CurState[block * DEVICE_BLOCK_SIZE + i] &= ~several[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
   Update(h->CurState);
 }
@@ -80,8 +80,8 @@ void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  for(uint8_t i=0; i < OUTPUT_BLOCK_SIZE; i++)
-    h->CurState[block * OUTPUT_BLOCK_SIZE + i] |= several[i];
+  for(uint8_t i=0; i < DEVICE_BLOCK_SIZE; i++)
+    h->CurState[block * DEVICE_BLOCK_SIZE + i] |= several[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
   Update(h->CurState);
 }
@@ -136,9 +136,9 @@ void Update(uint8_t *state)
   for(i=0; i< OUTPUT_ARRAY; i++)
     reverse[j--] = state[i];
 
-  HAL_SPI_TransmitReceive(&hspi2, reverse, dummy, sizeof(state), 100);
+  HAL_SPI_TransmitReceive(&hspi2, reverse, dummy, OUTPUT_ARRAY, 100);
 
-  /*ADS_LD# -> Load/Write */
+  /*#RLY_WR -> Load/Write */
   HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
   DelayUs(1);
   HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
@@ -164,7 +164,7 @@ void OutputChangedBlocksUpdate(OutputTypeDef *h)
        */
 
       /*Az i/4-blockban volt változás mivel egy blokban 4bajt van*/
-      h->ChangedBlocks[i/OUTPUT_BLOCK_SIZE] = 1;
+      h->ChangedBlocks[i/DEVICE_BLOCK_SIZE] = 1;
       /*Tudomasul vettük a változást*/
       h->PreBlockState[i] = h->CurState[i];
     }
@@ -203,20 +203,18 @@ uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber)
   return h->Counters[relaynumber];
 }
 
-
-
-
 uint8_t OutputDriverLoopTest(void)
 {
   /*4x8=32bit*/
 
-  uint8_t testvector[OUTPUT_DIRVERS_CNT*2];
-  uint8_t result[OUTPUT_DIRVERS_CNT*2];
+  uint8_t testvector[OUTPUT_ARRAY *2];
+  uint8_t result[OUTPUT_ARRAY * 2];
   memset(testvector,0x55, sizeof(testvector)/2);
   memset(result,0x00,  sizeof(testvector));
 
-  HAL_SPI_TransmitReceive(&hspi2, testvector, result, OUTPUT_DIRVERS_CNT * 2, 100);
-  if(memcmp(testvector, result + OUTPUT_DIRVERS_CNT, OUTPUT_DIRVERS_CNT) == 0)
+  HAL_SPI_TransmitReceive(&hspi2, testvector, result, OUTPUT_ARRAY * 2, 100);
+
+  if(memcmp(testvector, result + OUTPUT_ARRAY, OUTPUT_ARRAY) == 0)
     return OUTPUT_OK;
   else
     return OUTPUT_FAIL;

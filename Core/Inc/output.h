@@ -18,10 +18,9 @@
 
 
 
-#define OUTPUT_DIRVERS_CNT     DEVICE_OUTPUT_COUNT/8
 #define OUTPUT_ARRAY           DEVICE_OUTPUT_COUNT/8  /*160db/8= 20, 32db/8 = 4 */
-#define OUTPUT_MAX_BLOCK       DEVICE_OUTPUT_COUNT/8/4
-#define OUTPUT_BLOCK_SIZE    4
+
+
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -32,7 +31,7 @@ typedef struct
   uint8_t PreBlockState[OUTPUT_ARRAY];
   uint8_t CurState[OUTPUT_ARRAY];
   uint32_t Counters[DEVICE_OUTPUT_COUNT];
-  uint8_t ChangedBlocks[OUTPUT_MAX_BLOCK];
+  uint8_t ChangedBlocks[DEVICE_BLOCKS];
 }OutputTypeDef;
 
 

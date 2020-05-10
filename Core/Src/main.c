@@ -8,13 +8,13 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include <output.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
+#include <output.h>
 #include "common.h"
 #include "LiveLed.h"
 #include "memory.h"
@@ -256,7 +256,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
       Device.Req.Status++;
       Device.StatusAutoSendEnable = frame[2];
-      memset(Device.Output.ChangedBlocks, 0x01, OUTPUT_MAX_BLOCK);
+      memset(Device.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
     }
     /*** Host Start Request ***/
     else if(frame[0] == CARD_TYPE && frame [1] == 0xEE && frame[2] == 0x11)
@@ -270,14 +270,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
       Device.Req.Reset++;
       OutputReset(&Device.Output);
-      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
+      memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
     /*Outputs Counter Reset Request*/
     else if(frame[0] == CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x07)
     {
       Device.Req.ResetRlyCnt++;
       MemoryResetCounters(&Device.Memory);
-      memset(Device.Output.ChangedBlocks,0x01,OUTPUT_MAX_BLOCK);
+      memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
     /*** Get Outputs Counter ***/
     else if(frame[0] == CARD_TYPE && frame[1] == 0xEE && frame[2] == 0x01)
@@ -386,7 +386,7 @@ void StatusTask(void)
   char buffer[80];
 #endif
 
-  if(block < OUTPUT_MAX_BLOCK)
+  if(block < DEVICE_BLOCKS)
   {
     if(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) != 0)
     {
@@ -406,7 +406,7 @@ void StatusTask(void)
            * 3 -> 12..15
            * 4 -> 16..19
            */
-          memcpy(data + 2, Device.Output.CurState + block * OUTPUT_BLOCK_SIZE, OUTPUT_BLOCK_SIZE);
+          memcpy(data + 2, Device.Output.CurState + block * DEVICE_BLOCK_SIZE, DEVICE_BLOCK_SIZE);
 
           if(CanRespSend(Device.Address, data, sizeof(data))== HAL_OK)
           {
@@ -637,7 +637,7 @@ int main(void)
   /*** Defaults ***/
   OutputReset(&Device.Output);
   OutputEnable();
-  memset(Device.Output.ChangedBlocks, 0x00, OUTPUT_MAX_BLOCK);
+  memset(Device.Output.ChangedBlocks, 0x00, DEVICE_BLOCKS);
   Device.Address = GetAddress();
   Device.Version = DEVICE_FW;
   Device.CanSpeed = &CanSpeeds[GetSpeed()];
@@ -802,7 +802,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -875,11 +875,11 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, LIVE_LED_Pin|RLY_WR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(RLY_G_GPIO_Port, RLY_G_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, RLY_G_Pin|EEP_ON_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : RLY_CLK_Pin RLY_MOSI_Pin */
   GPIO_InitStruct.Pin = RLY_CLK_Pin|RLY_MOSI_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -897,12 +897,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(FAIL_LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LIVE_LED_Pin RLY_WR_Pin */
-  GPIO_InitStruct.Pin = LIVE_LED_Pin|RLY_WR_Pin;
+  /*Configure GPIO pin : LIVE_LED_Pin */
+  GPIO_InitStruct.Pin = LIVE_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(LIVE_LED_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : DIP1_Pin DIP2_Pin DIP3_Pin DIP4_Pin 
                            DIP5_Pin */
@@ -924,6 +924,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : RLY_WR_Pin */
+  GPIO_InitStruct.Pin = RLY_WR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : EEP_ON_Pin */
+  GPIO_InitStruct.Pin = EEP_ON_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(EEP_ON_GPIO_Port, &GPIO_InitStruct);
 
 }
 
