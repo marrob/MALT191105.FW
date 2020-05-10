@@ -157,9 +157,9 @@ void ConsoleWrite(char *str);
 #define DEVICE_DELAY_STATUS_TX_MS   5
 
 #ifndef DEBUG
-  #define DEVICE_FW           0x005A
+  #define DEVICE_FW           0x006A
 #else
-  #define DEVICE_FW           0x005D
+  #define DEVICE_FW           0x006D
 #endif
 
 #define DEVICE_MNF          "AltonTech"

@@ -157,6 +157,10 @@ static HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t siz
 void StatusTask(void);
 void UpTimeIncrementTask(void);
 
+void EepromOn(void);
+void EepromOff(void);
+
+
 LedItem_Type LedList[1] = {
   { DEVICE_FAIL_LED,  &FailLedOn,   &FailLedOff, },
 };
@@ -587,6 +591,8 @@ int main(void)
   LiveLedInit(&hLiveLed);
 
   /*** Memory ***/
+  HAL_Delay(100);
+  EepromOn();
   uint8_t dummy[] = {0xFF};
   HAL_I2C_Master_Transmit(&hi2c2, 0xFF, dummy, sizeof(dummy), 100  );
 
@@ -802,7 +808,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -1046,6 +1052,16 @@ uint8_t GetSpeed(void)
   (HAL_GPIO_ReadPin(DIP3_GPIO_Port,DIP1_Pin) == GPIO_PIN_SET)? (val&=~0x01): (val|=0x01);
   (HAL_GPIO_ReadPin(DIP4_GPIO_Port,DIP2_Pin) == GPIO_PIN_SET)? (val &=~0x02):(val|=0x02);
   return val;
+}
+
+/* EEPROM -----------------------------------------------------------*/
+void EepromOn(void)
+{
+  HAL_GPIO_WritePin(EEP_ON_GPIO_Port, EEP_ON_Pin, GPIO_PIN_RESET);
+}
+void EepromOff(void)
+{
+  HAL_GPIO_WritePin(EEP_ON_GPIO_Port, EEP_ON_Pin, GPIO_PIN_SET);
 }
 
 /* USER CODE END 4 */
