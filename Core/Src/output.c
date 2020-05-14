@@ -144,6 +144,8 @@ void Update(const uint8_t *state)
     buffer[j]= state[i];
     j+=2;
   }
+#else
+  memcpy(buffer, state, OUTPUT_ARRAY);
 #endif
 
   memset(dummy, 0x00, sizeof(dummy));
@@ -220,7 +222,7 @@ uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber)
 {
   if(relaynumber > DEVICE_OUTPUT_COUNT)
   {
-    return UINT32_MAX;
+    return 0;
   }
   return h->Counters[relaynumber];
 }
