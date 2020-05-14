@@ -124,7 +124,7 @@ void ConsoleWrite(char *str);
  * MALT23HV     0x03        0x10
  */
 
-#define CONFIG_MALT23HV
+#define CONFIG_MALT23THV
 
 
 
@@ -145,8 +145,8 @@ void ConsoleWrite(char *str);
   #define DEVICE_BLOCKS               DEVICE_OUTPUT_COUNT/8/4
   #define DEVICE_CARD_TYPE            0x03
   #define DEVICE_CARD_OPTIONS         0x00
-#elif defined(CONFIG_MALT23HV)
-  #define DEVICE_NAME                 "MALT23T"
+#elif defined(CONFIG_MALT23THV)
+  #define DEVICE_NAME                 "MALT23THV"
   #define DEVICE_PCB                  "V00"
   #define DEVICE_OUTPUT_COUNT         24
   #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
@@ -165,9 +165,9 @@ void ConsoleWrite(char *str);
 
 
 #ifndef DEBUG
-  #define DEVICE_FW           0x008A
+  #define DEVICE_FW           0x009A
 #else
-  #define DEVICE_FW           0x008D
+  #define DEVICE_FW           0x009D
 #endif
 
 #define DEVICE_MNF          "AltonTech"
