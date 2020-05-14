@@ -9,7 +9,7 @@
 #include <output.h>
 
 /* Private function prototypes -----------------------------------------------*/
-static void Update(uint8_t *state);
+static void Update(const uint8_t *state);
 static void ArrayToolsU8SetBit(const uint16_t index, void* array);
 static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter);
 
@@ -123,18 +123,35 @@ void OutputReset(OutputTypeDef *h)
   Update(h->CurState);
 }
 
-void Update(uint8_t *state)
+void Update(const uint8_t *state)
 {
+
   uint8_t i,j;
+  uint8_t buffer[OUTPUT_ARRAY];
   uint8_t dummy[OUTPUT_ARRAY];
   uint8_t reverse[OUTPUT_ARRAY];
+
+#if defined(CONFIG_MALT160T)
+  j=0;
+  for(i=0; i < OUTPUT_ARRAY/2; i++)
+  {
+    buffer[j]= state[i];
+    j+=2;
+  }
+  j=1;
+  for(i=OUTPUT_ARRAY/2; i < OUTPUT_ARRAY; i++)
+  {
+    buffer[j]= state[i];
+    j+=2;
+  }
+#endif
 
   memset(dummy, 0x00, sizeof(dummy));
 
   /*Ezt egyszer hardveresen kell megcsinalni*/
   j = OUTPUT_ARRAY-1;
   for(i=0; i< OUTPUT_ARRAY; i++)
-    reverse[j--] = state[i];
+    reverse[j--] = buffer[i];
 
   HAL_SPI_TransmitReceive(&hspi2, reverse, dummy, OUTPUT_ARRAY, 100);
 
@@ -143,6 +160,11 @@ void Update(uint8_t *state)
   DelayUs(1);
   HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
 }
+
+
+
+
+
 
 void OutputChangedBlocksUpdate(OutputTypeDef *h)
 {
@@ -211,9 +233,11 @@ uint8_t OutputDriverLoopTest(void)
   uint8_t result[OUTPUT_ARRAY * 2];
   memset(testvector,0x55, sizeof(testvector)/2);
   memset(result,0x00,  sizeof(testvector));
-
+//do
+//{
   HAL_SPI_TransmitReceive(&hspi2, testvector, result, OUTPUT_ARRAY * 2, 100);
-
+  HAL_Delay(100);
+//}while(1);
   if(memcmp(testvector, result + OUTPUT_ARRAY, OUTPUT_ARRAY) == 0)
     return OUTPUT_OK;
   else

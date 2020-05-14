@@ -605,7 +605,7 @@ int main(void)
     LedShowCode(&hLed, DEVICE_FAIL_LED, FAIL_LED_MEM_TEST);
   }
 
-  /*MemoryReset(&Device.Memory);*/
+//  MemoryReset(&Device.Memory);
 
   if(MemoryLoad(&Device.Memory)!= MEM_OK)
   {
@@ -631,6 +631,26 @@ int main(void)
 #endif
   }
   DeviceUsrLog("SerialNumber:%lu, BootUpCounter:%lu", Device.Memory.SerialNumber, Device.Memory.BootUpCounter);
+
+
+#if defined(CONFIG_MALT160T)
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /*Configure GPIO pin : RLY_G_Pin */
+  GPIO_InitStruct.Pin = RLY_G_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : RLY_WR_Pin */
+  GPIO_InitStruct.Pin = RLY_WR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
+#endif
+
 
   /*** OutputsCount Driver Test ***/
   if(OutputDriverLoopTest()!= OUTPUT_OK)
