@@ -82,7 +82,6 @@ typedef struct _AppTypeDef
     uint32_t AskAllInfo;
     uint32_t Status;
     uint32_t RelayCounter;
-
   }Resp;
 
   struct _selfTest
@@ -192,10 +191,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
         Device.Req.AskAllInfo ++;
         CanAskAllInfoResponse();
 
+
+        /*
+         * Todo Request Save Counters
+         * Ez itt egy lassú művelet
+         * */
         for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
-        {
-          Device.Memory.Counters[i] = Device.Output.Counters[i];
-        }
+            Device.Memory.Counters[i] = Device.Output.Counters[i];
+
         if(Device.Status.MemFail == 0)
         {
           Device.Status.MemSaved++;
@@ -226,85 +229,115 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       Device.Status.UnknownFrame++;
     }
   }
-  else if(rxHeader.ExtId == (CARD_RX_ADDRESS | DEVICE_CARD_TYPE << 8 | Device.Address))
+  else if(rxHeader.ExtId == (CARD_RX_ADDRESS | DEVICE_FAMILY_CODE << 8 | Device.Address))
   {
-    /*** Set One Off Request ***/
-    if(frame[0]== DEVICE_CARD_TYPE && frame[1] == 0x01 && frame[3] == 0)
+    /***  Request Clr One  ***/
+    if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 0)
     {
       Device.Req.OneOff++;
       OutputOneOff(&Device.Output, frame[2]);
     }
-    /*** Set One On Request ***/
-    else if(frame[0]== DEVICE_CARD_TYPE && frame[1] == 0x01 && frame[3] == 1)
+    /*** Request Set One ***/
+    else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 1)
     {
       Device.Req.OneOn++;
       OutpuOneOn(&Device.Output,frame[2]);
     }
-    /*** Several Off Request ***/
-    else if(frame[0]== DEVICE_CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x00)
+    /*** Request Clr Several ***/
+    else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x00)
     {
       Device.Req.SeveralOff++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOffSeveral(&Device.Output,temp, frame[7]);
     }
-    /*** Several On Request ***/
-    else if(frame[0]== DEVICE_CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x01)
+    /*** Request Set Several ***/
+    else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x01)
     {
       Device.Req.SeveralOn++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOnSeveral(&Device.Output, temp, frame[7]);
     }
-    /*** Several Toogle Request ***/
-    else if(frame[0]== DEVICE_CARD_TYPE && frame[1] == 0x03 && frame[6] == 0x02)
+    /*** Request Toogle Several ***/
+    else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x02)
     {
       Device.Req.SeveralToogle++;
       uint8_t temp[] = {frame[2],frame[3], frame[4], frame[5]};
       OutputSeveralToogle(&Device.Output, temp, frame[7]);
     }
-    /*** Status Request  ***/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame[1] == 0x04 && frame[2] == 0x01)
+    /*** Request Status ***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x04 && frame[2] == 0x01)
     {
       Device.Req.Status++;
       Device.StatusAutoSendEnable = frame[2];
       memset(Device.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
     }
-    /*** Host Start Request ***/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame [1] == 0xEE && frame[2] == 0x11)
+    /*** Host Start Request ToDo: Request Counters Save***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0xEE && frame[2] == 0x11)
     {
       Device.Req.HostStart++;
-      uint8_t data[] = { DEVICE_CARD_TYPE, 0xEE, 0x12, 0x01 };
+      uint8_t data[] = { DEVICE_FAMILY_CODE, 0xEE, 0x12, 0x01 };
       CanRespSend(Device.Address, data, sizeof(data));
     }
-    /*** Reset Request ***/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x06)
+    /*** Request Reset ***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0x03 && frame[6]== 0x06)
     {
       Device.Req.Reset++;
       OutputReset(&Device.Output);
       memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
-    /*Outputs Counter Reset Request*/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame [1] == 0x03 && frame[6]== 0x07)
+    /* Request Port Counter Reset */
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0x0EE && frame[2]== 0x00)
     {
       Device.Req.ResetRlyCnt++;
       MemoryResetCounters(&Device.Memory);
       memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
-    /*** Get Outputs Counter ***/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame[1] == 0xEE && frame[2] == 0x01)
+    /*** Request Get Port Counter ***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x01)
     {
       Device.Req.RelayCounter++;
       CanRespRlyCnt(frame[3]);
     }
-    /*** Serial Number Request ***/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame[1] == 0xDE && frame[2] == 0xF5)
+    /*** Request Set Port Counter ***/
+    else if (frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x02)
+    {
+       uint8_t port = frame[3];
+       uint8_t value[]={frame[4],frame[5],frame[6], frame[7] };
+       OutputCounterSet(&Device.Output, port,*((uint32_t*)value) );
+       memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+    }
+    /*** Request Save Port Counters ***/
+    else if (frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x03)
+    {
+
+      /*
+       * Todo Request Save Counters
+       * Ez itt egy lassú művelet
+       * */
+      for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+          Device.Memory.Counters[i] = Device.Output.Counters[i];
+
+      if(Device.Status.MemFail == 0)
+      {
+        Device.Status.MemSaved++;
+        MemorySave(&Device.Memory);
+      }
+      else
+      {
+        Device.Status.MemFail++;
+      }
+      memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+    }
+    /*** Request Serial Number  ***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xDE && frame[2] == 0xF5)
     {
       Device.Req.SerialNumber++;
-      uint8_t data[] = { DEVICE_CARD_TYPE, 0xDE, 0xF0, 0xC3, 0xD8, 0x12, 0x00 };
+      uint8_t data[] = { DEVICE_FAMILY_CODE, 0xDE, 0xF0, 0xC3, 0xD8, 0x12, 0x00 };
       memcpy(data + 3, (uint8_t*)&Device.Memory.SerialNumber, DEVICE_SN_SIZE);
       CanRespSend(Device.Address, data, sizeof(data));
     }
-    /*** Read from EEPROM  ***/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame[1] == 0xFA && frame[2] == 0xF1)
+    /*** Request Read EEPROM  ***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xFA && frame[2] == 0xF1)
     {
       uint16_t addr = 0;
       addr |= frame[4] << 8;  /* address high */
@@ -317,12 +350,12 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       }
       else
       {
-        uint8_t temp[] = {DEVICE_CARD_TYPE, 0xFA, 0xF1, frame[3], frame[4], data[0], data[1] };
+        uint8_t temp[] = {DEVICE_FAMILY_CODE, 0xFA, 0xF1, frame[3], frame[4], data[0], data[1] };
         CanRespSend(Device.Address,temp, sizeof(temp));
       }
     }
     /*** Write to EEPROM ***/
-    else if(frame[0] == DEVICE_CARD_TYPE && frame[1] == 0xFA && frame[2] == 0xF2)
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xFA && frame[2] == 0xF2)
     {
       uint16_t addr = 0;
       addr |= frame[4] << 8;  /* address high */
@@ -331,6 +364,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       if(MemoryLowWrite(addr, data, sizeof(data)) != HAL_OK)
       {
         Device.Status.MemFail++;
+      }
+      else
+      {
+        memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
       }
     }
     else
@@ -344,7 +381,7 @@ void CanRespRlyCnt(uint8_t relaynumber)
 {
   Device.Resp.RelayCounter++;
   uint32_t value = OutputCounterGet(&Device.Output, relaynumber);
-  uint8_t data[] = { DEVICE_CARD_TYPE, 0xEE, 0x01, relaynumber, 0xFF, 0xFF, 0xFF, 0xFF };
+  uint8_t data[] = { DEVICE_FAMILY_CODE, 0xEE, 0x01, relaynumber, 0xFF, 0xFF, 0xFF, 0xFF };
   memcpy(data + sizeof(value), &value, sizeof(value));
   CanRespSend(Device.Address, data, sizeof(data));
 }
@@ -353,7 +390,7 @@ void CanRespRlyCnt(uint8_t relaynumber)
 void CanAskAllInfoResponse(void)
 {
   Device.Resp.AskAllInfo ++;
-  uint8_t data[] = {0xF0, 0x01, DEVICE_CARD_TYPE, Device.Address, DEVICE_CARD_OPTIONS, 0x00, 0x00};
+  uint8_t data[] = {0xF0, 0x01, DEVICE_FAMILY_CODE, Device.Address, DEVICE_OPTION_CODE, 0x00, 0x00};
   memcpy(data + sizeof (data) - sizeof(uint16_t), (uint8_t*)&Device.Version, sizeof(uint16_t));
   CanRespSend(Device.Address, data, sizeof(data));
 }
@@ -363,7 +400,7 @@ void CanAskAllInfoResponse(void)
   HAL_StatusTypeDef status = HAL_OK;
   CAN_TxHeaderTypeDef   txHeader;
   uint32_t              txMailbox;
-  txHeader.ExtId = CARD_TX_ADDRESS | DEVICE_CARD_TYPE << 8 | address;
+  txHeader.ExtId = CARD_TX_ADDRESS | DEVICE_FAMILY_CODE << 8 | address;
   txHeader.RTR = CAN_RTR_DATA;
   txHeader.IDE = CAN_ID_EXT;
   txHeader.DLC = size;
@@ -405,9 +442,9 @@ void StatusTask(void)
         if(Device.Output.ChangedBlocks[block])
         {
 #ifdef DEBUG_STATUS
-          uint8_t data[] = { DEVICE_CARD_TYPE, 0x04, 0x00, 0x00, 0x00, 0x00,  Device.Resp.Status};
+          uint8_t data[] = { DEVICE_FAMILY_CODE, 0x04, 0x00, 0x00, 0x00, 0x00,  Device.Resp.Status};
 #else
-          uint8_t data[] = { DEVICE_CARD_TYPE, 0x04, 0x00, 0x00, 0x00, 0x00,  block};
+          uint8_t data[] = { DEVICE_FAMILY_CODE, 0x04, 0x00, 0x00, 0x00, 0x00,  block};
 #endif
           /* block -> byte index
            * 0 -> 0..3,
@@ -583,7 +620,7 @@ int main(void)
   printf(VT100_ATTR_RESET);
 #endif
 
-  DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_NAME, DEVICE_FW);
+  DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_FIRST_NAME, DEVICE_FW);
   /*** Leds ***/
   hLed.pLedTable = LedList;
   hLed.Records = sizeof(LedList)/sizeof(LedItem_Type);

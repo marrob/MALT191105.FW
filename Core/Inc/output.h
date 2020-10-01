@@ -45,6 +45,8 @@ void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);
 void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block);
 
 uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber);
+uint32_t OutputCounterSet(OutputTypeDef *h, uint8_t relaynumber, uint32_t value);
+
 void OutputChangedBlocksUpdate(OutputTypeDef *h);
 
 void OutputSpiTxRx(void *transmitt, void *receive, size_t size);

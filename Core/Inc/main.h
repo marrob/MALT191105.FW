@@ -124,35 +124,35 @@ void ConsoleWrite(char *str);
  * MALT23HV     0x03        0x10
  */
 
-#define CONFIG_MALT23THV
-
-
+//#define CONFIG_MALT23THV
+//#define CONFIG_MALT160T
+#define CONFIG_MALT132
 
 /* Generic  -------------------------------------------------------------------*/
 #if  defined(CONFIG_MALT160T)
-  #define DEVICE_NAME                 "MALT160T"
+  #define DEVICE_FIRST_NAME           "MALT160T"
   #define DEVICE_PCB                  "V00"
   #define DEVICE_OUTPUT_COUNT         160
   #define DEVICE_BLOCK_SIZE           4
   #define DEVICE_BLOCKS               DEVICE_OUTPUT_COUNT/8/4
-  #define DEVICE_CARD_TYPE            0x15
-  #define DEVICE_CARD_OPTIONS         0x05
+  #define DEVICE_FAMILY_CODE          0x15
+  #define DEVICE_OPTION_CODE          0x05
 #elif defined(CONFIG_MALT132)
-  #define DEVICE_NAME                 "MALT132"
+  #define DEVICE_FIRST_NAME           "MALT132"
   #define DEVICE_PCB                  "V00"
   #define DEVICE_OUTPUT_COUNT         32
   #define DEVICE_BLOCK_SIZE           4
   #define DEVICE_BLOCKS               DEVICE_OUTPUT_COUNT/8/4
-  #define DEVICE_CARD_TYPE            0x03
-  #define DEVICE_CARD_OPTIONS         0x00
+  #define DEVICE_FAMILY_CODE          0x03
+  #define DEVICE_OPTION_CODE          0x00
 #elif defined(CONFIG_MALT23THV)
-  #define DEVICE_NAME                 "MALT23THV"
+  #define DEVICE_FIRST_NAME           "MALT23THV"
   #define DEVICE_PCB                  "V00"
   #define DEVICE_OUTPUT_COUNT         24
   #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
   #define DEVICE_BLOCKS               1
-  #define DEVICE_CARD_TYPE            0x03
-  #define DEVICE_CARD_OPTIONS         0x10
+  #define DEVICE_FAMILY_CODE          0x03
+  #define DEVICE_OPTION_CODE          0x10
 #else
 #error "Imserelten konfiguracio"
 #endif
@@ -165,9 +165,9 @@ void ConsoleWrite(char *str);
 
 
 #ifndef DEBUG
-  #define DEVICE_FW           0x009A
+  #define DEVICE_FW           0x010A
 #else
-  #define DEVICE_FW           0x009D
+  #define DEVICE_FW           0x010D
 #endif
 
 #define DEVICE_MNF          "AltonTech"

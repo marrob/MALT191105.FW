@@ -227,6 +227,16 @@ uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber)
   return h->Counters[relaynumber];
 }
 
+uint32_t OutputCounterSet(OutputTypeDef *h, uint8_t relaynumber, uint32_t value)
+{
+  if(relaynumber > DEVICE_OUTPUT_COUNT)
+  {
+    return 0;
+  }
+  h->Counters[relaynumber] = value;
+}
+
+
 uint8_t OutputDriverLoopTest(void)
 {
   /*4x8=32bit*/
