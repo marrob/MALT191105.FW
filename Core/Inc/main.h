@@ -126,7 +126,7 @@ void ConsoleWrite(char *str);
 
 //#define CONFIG_MALT23THV
 //#define CONFIG_MALT160T
-#define CONFIG_MALT132
+#define CONFIG_MALT16PIN
 
 /* Generic  -------------------------------------------------------------------*/
 #if  defined(CONFIG_MALT160T)
@@ -153,6 +153,14 @@ void ConsoleWrite(char *str);
   #define DEVICE_BLOCKS               1
   #define DEVICE_FAMILY_CODE          0x03
   #define DEVICE_OPTION_CODE          0x10
+#elif defined(CONFIG_MALT16PIN)
+  #define DEVICE_FIRST_NAME           "MALT16PIN"
+  #define DEVICE_PCB                  "V00"
+  #define DEVICE_OUTPUT_COUNT         16
+  #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
+  #define DEVICE_BLOCKS               1
+  #define DEVICE_FAMILY_CODE          0x05
+  #define DEVICE_OPTION_CODE          0x01
 #else
 #error "Imserelten konfiguracio"
 #endif
@@ -165,9 +173,9 @@ void ConsoleWrite(char *str);
 
 
 #ifndef DEBUG
-  #define DEVICE_FW           0x010A
+  #define DEVICE_FW           0x011A
 #else
-  #define DEVICE_FW           0x010D
+  #define DEVICE_FW           0x011D
 #endif
 
 #define DEVICE_MNF          "AltonTech"

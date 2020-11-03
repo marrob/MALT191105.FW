@@ -18,7 +18,7 @@
 
 
 
-#define OUTPUT_ARRAY           DEVICE_OUTPUT_COUNT/8  /*160db/8= 20, 32db/8 = 4 */
+#define OUTPUT_ARRAY_SIZE           DEVICE_OUTPUT_COUNT/8  /*160db/8= 20, 32db/8 = 4 */
 
 
 
@@ -27,9 +27,9 @@
 typedef struct
 {
   uint32_t Count;
-  uint8_t PreState[OUTPUT_ARRAY];
-  uint8_t PreBlockState[OUTPUT_ARRAY];
-  uint8_t CurState[OUTPUT_ARRAY];
+  uint8_t PreState[OUTPUT_ARRAY_SIZE];
+  uint8_t PreBlockState[OUTPUT_ARRAY_SIZE];
+  uint8_t CurState[OUTPUT_ARRAY_SIZE];
   uint32_t Counters[DEVICE_OUTPUT_COUNT];
   uint8_t ChangedBlocks[DEVICE_BLOCKS];
 }OutputTypeDef;

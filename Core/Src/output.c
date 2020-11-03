@@ -19,11 +19,11 @@ static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter);
  */
 void OutpuOneOn(OutputTypeDef *h, uint8_t k)
 {
-  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  uint8_t temp[OUTPUT_ARRAY];
-  memset(temp, 0x00, OUTPUT_ARRAY);
+  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY_SIZE);
+  uint8_t temp[OUTPUT_ARRAY_SIZE];
+  memset(temp, 0x00, OUTPUT_ARRAY_SIZE);
   ArrayToolsU8SetBit(k, temp);
-  for(uint8_t i=0; i < OUTPUT_ARRAY; i++ )
+  for(uint8_t i=0; i < OUTPUT_ARRAY_SIZE; i++ )
     h->CurState[i]|=temp[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
   Update(h->CurState);
@@ -34,13 +34,13 @@ void OutpuOneOn(OutputTypeDef *h, uint8_t k)
  */
 void OutputOneOff(OutputTypeDef *h, uint8_t k)
 {
-  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
-  uint8_t temp[OUTPUT_ARRAY];
-  memset(temp, 0x00, OUTPUT_ARRAY);
+  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY_SIZE);
+  uint8_t temp[OUTPUT_ARRAY_SIZE];
+  memset(temp, 0x00, OUTPUT_ARRAY_SIZE);
   ArrayToolsU8SetBit(k, temp);
-  for(uint8_t i=0; i<OUTPUT_ARRAY; i++)
+  for(uint8_t i=0; i<OUTPUT_ARRAY_SIZE; i++)
     temp[i] = ~temp[i];
-  for(uint8_t i=0; i < OUTPUT_ARRAY; i++ )
+  for(uint8_t i=0; i < OUTPUT_ARRAY_SIZE; i++ )
     h->CurState[i] &=temp[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
   Update(h->CurState);
@@ -48,7 +48,7 @@ void OutputOneOff(OutputTypeDef *h, uint8_t k)
 
 void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
-  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
+  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY_SIZE);
   for(uint8_t i = 0; i < DEVICE_BLOCK_SIZE; i++)
   {
     if(several[i])
@@ -70,7 +70,7 @@ void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block)
  */
 void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
-  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
+  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY_SIZE);
   for(uint8_t i=0; i < DEVICE_BLOCK_SIZE; i++)
     h->CurState[block * DEVICE_BLOCK_SIZE + i] &= ~several[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
@@ -79,7 +79,7 @@ void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 
 void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
 {
-  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY);
+  memcpy(h->PreState, h->CurState, OUTPUT_ARRAY_SIZE);
   for(uint8_t i=0; i < DEVICE_BLOCK_SIZE; i++)
     h->CurState[block * DEVICE_BLOCK_SIZE + i] |= several[i];
   CounterUpdate(h->PreState, h->CurState, h->Counters);
@@ -118,8 +118,8 @@ void ArrayToolsU8SetBit(const uint16_t index, void* array)
 
 void OutputReset(OutputTypeDef *h)
 {
-  memset(h->PreState, 0x00, OUTPUT_ARRAY);
-  memset(h->CurState, 0x00, OUTPUT_ARRAY);
+  memset(h->PreState, 0x00, OUTPUT_ARRAY_SIZE);
+  memset(h->CurState, 0x00, OUTPUT_ARRAY_SIZE);
   Update(h->CurState);
 }
 
@@ -127,35 +127,35 @@ void Update(const uint8_t *state)
 {
 
   uint8_t i,j;
-  uint8_t buffer[OUTPUT_ARRAY];
-  uint8_t dummy[OUTPUT_ARRAY];
-  uint8_t reverse[OUTPUT_ARRAY];
+  uint8_t buffer[OUTPUT_ARRAY_SIZE];
+  uint8_t dummy[OUTPUT_ARRAY_SIZE];
+  uint8_t reverse[OUTPUT_ARRAY_SIZE];
 
 #if defined(CONFIG_MALT160T)
   j=0;
-  for(i=0; i < OUTPUT_ARRAY/2; i++)
+  for(i=0; i < OUTPUT_ARRAY_SIZE/2; i++)
   {
     buffer[j]= state[i];
     j+=2;
   }
   j=1;
-  for(i=OUTPUT_ARRAY/2; i < OUTPUT_ARRAY; i++)
+  for(i=OUTPUT_ARRAY_SIZE/2; i < OUTPUT_ARRAY_SIZE; i++)
   {
     buffer[j]= state[i];
     j+=2;
   }
 #else
-  memcpy(buffer, state, OUTPUT_ARRAY);
+  memcpy(buffer, state, OUTPUT_ARRAY_SIZE);
 #endif
 
   memset(dummy, 0x00, sizeof(dummy));
 
   /*Ezt egyszer hardveresen kell megcsinalni*/
-  j = OUTPUT_ARRAY-1;
-  for(i=0; i< OUTPUT_ARRAY; i++)
+  j = OUTPUT_ARRAY_SIZE-1;
+  for(i=0; i< OUTPUT_ARRAY_SIZE; i++)
     reverse[j--] = buffer[i];
 
-  HAL_SPI_TransmitReceive(&hspi2, reverse, dummy, OUTPUT_ARRAY, 100);
+  HAL_SPI_TransmitReceive(&hspi2, reverse, dummy, OUTPUT_ARRAY_SIZE, 100);
 
   /*#RLY_WR -> Load/Write */
   HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
@@ -170,9 +170,9 @@ void Update(const uint8_t *state)
 
 void OutputChangedBlocksUpdate(OutputTypeDef *h)
 {
-  uint8_t dif[OUTPUT_ARRAY];
+  uint8_t dif[OUTPUT_ARRAY_SIZE];
 
-  for(uint8_t i = 0; i < OUTPUT_ARRAY; i++)
+  for(uint8_t i = 0; i < OUTPUT_ARRAY_SIZE; i++)
   {
     dif[i] = h->PreBlockState[i] ^ h->CurState[i];
     if(dif[i])
@@ -197,9 +197,9 @@ void OutputChangedBlocksUpdate(OutputTypeDef *h)
 
 static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter)
 {
-  uint8_t dif[OUTPUT_ARRAY];
+  uint8_t dif[OUTPUT_ARRAY_SIZE];
   uint8_t relay_index = 0;
-  for(uint8_t i = 0; i < OUTPUT_ARRAY; i++)
+  for(uint8_t i = 0; i < OUTPUT_ARRAY_SIZE; i++)
   {
     dif[i] = pre[i] ^ cur[i];
     /*Ahol változás volt, azt keresseük ami 0-ról 1-re váltott és a hozzá tartozó indexet*/
@@ -239,18 +239,20 @@ uint32_t OutputCounterSet(OutputTypeDef *h, uint8_t relaynumber, uint32_t value)
 
 uint8_t OutputDriverLoopTest(void)
 {
-  /*4x8=32bit*/
-
-  uint8_t testvector[OUTPUT_ARRAY *2];
-  uint8_t result[OUTPUT_ARRAY * 2];
+  uint8_t testvector[OUTPUT_ARRAY_SIZE *2];
+  uint8_t result[OUTPUT_ARRAY_SIZE * 2];
   memset(testvector,0x55, sizeof(testvector)/2);
   memset(result,0x00,  sizeof(testvector));
-//do
-//{
-  HAL_SPI_TransmitReceive(&hspi2, testvector, result, OUTPUT_ARRAY * 2, 100);
+//do{
+/*
+ * A szkop
+ * 200ns/div
+ * 2V/div-es állásban kell hogy legyen
+ */
+  HAL_SPI_TransmitReceive(&hspi2, testvector, result, OUTPUT_ARRAY_SIZE * 2, 100);
   HAL_Delay(100);
 //}while(1);
-  if(memcmp(testvector, result + OUTPUT_ARRAY, OUTPUT_ARRAY) == 0)
+  if(memcmp(testvector, result + OUTPUT_ARRAY_SIZE, OUTPUT_ARRAY_SIZE) == 0)
     return OUTPUT_OK;
   else
     return OUTPUT_FAIL;
