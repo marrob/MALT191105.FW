@@ -674,8 +674,48 @@ int main(void)
   }
   DeviceUsrLog("SerialNumber:%lu, BootUpCounter:%lu", Device.Memory.SerialNumber, Device.Memory.BootUpCounter);
 
+#if defined(CONFIG_MALT40IO)
+  /*Push-Pull*/
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-#if defined(CONFIG_MALT160T) || defined(CONFIG_MALT16PIN)
+  /*Configure GPIO pin : RLY_G_Pin */
+  GPIO_InitStruct.Pin = RLY_G_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : RLY_WR_Pin */
+  GPIO_InitStruct.Pin = RLY_WR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
+
+#elif defined(CONFIG_MALT160T)
+  /*Push-Pull*/
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /*Configure GPIO pin : RLY_G_Pin */
+  GPIO_InitStruct.Pin = RLY_G_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : RLY_WR_Pin */
+  GPIO_InitStruct.Pin = RLY_WR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
+
+#elif defined(CONFIG_MALT132)
+  /*default - Open Drain*/
+#elif defined(CONFIG_MALT23THV)
+  /*default - Open Drain*/
+#elif defined(CONFIG_MALT16PIN)
+  /*Push-Pull*/
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /*Configure GPIO pin : RLY_G_Pin */
@@ -1008,6 +1048,9 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(EEP_ON_GPIO_Port, &GPIO_InitStruct);
 
+  /* USER CODE BEGIN MX_GPIO_Init */
+  ConsoleWrite("Hello World");
+  /* USER CODE END MX_GPIO_Init */
 }
 
 /* USER CODE BEGIN 4 */

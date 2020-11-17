@@ -233,7 +233,10 @@ uint32_t OutputCounterSet(OutputTypeDef *h, uint8_t relaynumber, uint32_t value)
   {
     return 0;
   }
-  h->Counters[relaynumber] = value;
+  else
+  {
+    h->Counters[relaynumber] = value;
+  }
 }
 
 
@@ -241,9 +244,10 @@ uint8_t OutputDriverLoopTest(void)
 {
   uint8_t testvector[OUTPUT_ARRAY_SIZE *2];
   uint8_t result[OUTPUT_ARRAY_SIZE * 2];
+  memset(testvector,0x00, sizeof(testvector));
   memset(testvector,0x55, sizeof(testvector)/2);
   memset(result,0x00,  sizeof(testvector));
-//do{
+do{
 /*
  * A szkop
  * 200ns/div
@@ -251,7 +255,7 @@ uint8_t OutputDriverLoopTest(void)
  */
   HAL_SPI_TransmitReceive(&hspi2, testvector, result, OUTPUT_ARRAY_SIZE * 2, 100);
   HAL_Delay(100);
-//}while(1);
+}while(1);
   if(memcmp(testvector, result + OUTPUT_ARRAY_SIZE, OUTPUT_ARRAY_SIZE) == 0)
     return OUTPUT_OK;
   else
