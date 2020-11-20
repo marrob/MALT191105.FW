@@ -18,7 +18,7 @@
 
 
 
-#define OUTPUT_ARRAY_SIZE           DEVICE_OUTPUT_COUNT/8  /*160db/8= 20, 32db/8 = 4 */
+#define SPI_IO_ARRAY_SIZE      DEVICE_OUTPUTS_COUNT/8  /*160db/8= 20, 32db/8 = 4 */
 
 
 
@@ -27,13 +27,20 @@
 typedef struct
 {
   uint32_t Count;
-  uint8_t PreState[OUTPUT_ARRAY_SIZE];
-  uint8_t PreBlockState[OUTPUT_ARRAY_SIZE];
-  uint8_t CurState[OUTPUT_ARRAY_SIZE];
-  uint32_t Counters[DEVICE_OUTPUT_COUNT];
+  uint8_t PreState[SPI_IO_ARRAY_SIZE];
+  uint8_t PreBlockState[SPI_IO_ARRAY_SIZE];
+  uint8_t CurState[SPI_IO_ARRAY_SIZE];
+  uint32_t Counters[DEVICE_OUTPUTS_COUNT];
   uint8_t ChangedBlocks[DEVICE_BLOCKS];
+
+  struct{
+  uint8_t CurState[SPI_IO_ARRAY_SIZE];
+
+  }Inputs;
 }OutputTypeDef;
 
+
+void IoInit(OutputTypeDef *context);
 
 void OutputEnable(void);
 
@@ -49,9 +56,18 @@ uint32_t OutputCounterSet(OutputTypeDef *h, uint8_t relaynumber, uint32_t value)
 
 void OutputChangedBlocksUpdate(OutputTypeDef *h);
 
+
 void OutputSpiTxRx(void *transmitt, void *receive, size_t size);
 void OutputReset(OutputTypeDef *h);
 
 uint8_t OutputDriverLoopTest(void);
+
+
+void IoInputLDEnable(void);
+void IoInputLDDiasable(void);
+
+
+void IoTask(OutputTypeDef *context);
+
 
 #endif /* SRC_RELAYS_H_ */

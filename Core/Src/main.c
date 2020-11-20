@@ -152,7 +152,7 @@ static void CanInit(CanBusSpeedTypeDef *speed);
 void CanAskAllInfoResponse();
 void CanRespRlyCnt(uint8_t relaynumber);
 static HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size);
-void StatusTask(void);
+void OutputStatusTask(void);
 void UpTimeIncrementTask(void);
 
 void EepromOn(void);
@@ -195,7 +195,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
          * Todo Request Save Counters
          * Ez itt egy lassú művelet
          * */
-        for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+        for(uint8_t i=0; i < DEVICE_OUTPUTS_COUNT; i++)
             Device.Memory.Counters[i] = Device.Output.Counters[i];
 
         if(Device.Status.MemFail == 0)
@@ -313,7 +313,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
        * Todo Request Save Counters
        * Ez itt egy lassú művelet
        * */
-      for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+      for(uint8_t i=0; i < DEVICE_OUTPUTS_COUNT; i++)
           Device.Memory.Counters[i] = Device.Output.Counters[i];
 
       if(Device.Status.MemFail == 0)
@@ -424,7 +424,7 @@ void CanAskAllInfoResponse(void)
 #ifdef DEBUG_STATUS
  uint8_t LastStatusFrame[8];
 #endif
-void StatusTask(void)
+void OutputStatusTask(void)
 {
   static uint8_t block = 0;
   static uint32_t lastSentTimestamp = 0;
@@ -432,6 +432,9 @@ void StatusTask(void)
   char buffer[80];
 #endif
 
+  /**
+   * Blokonként nézzük meg, hogy történt-e változás, ha igen akkor azt az egy blokkot küljdük vissza amiben a változás történt.
+   */
   if(block < DEVICE_BLOCKS)
   {
     if(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) != 0)
@@ -483,6 +486,11 @@ void StatusTask(void)
     if(Device.StatusAutoSendEnable)
       OutputChangedBlocksUpdate(&Device.Output);
   }
+}
+
+void InputStatusTask()
+{
+
 }
 
 
@@ -668,7 +676,7 @@ int main(void)
     for(uint8_t i=0; i < Device.Output.Count; i++)
       Device.Output.Counters[i]=Device.Memory.Counters[i];
 #else
-    for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+    for(uint8_t i=0; i < DEVICE_OUTPUTS_COUNT; i++)
       Device.Output.Counters[i]=Device.Memory.Counters[i];
 #endif
   }
@@ -679,11 +687,11 @@ int main(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /*Configure GPIO pin : RLY_G_Pin */
-  GPIO_InitStruct.Pin = RLY_G_Pin;
+  GPIO_InitStruct.Pin = DO_G_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(DO_G_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RLY_WR_Pin */
   GPIO_InitStruct.Pin = RLY_WR_Pin;
@@ -692,16 +700,23 @@ int main(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : DI_LD_GPIO_Port Default Hight*/
+  GPIO_InitStruct.Pin = DI_LD_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(DI_LD_GPIO_Port, &GPIO_InitStruct);
+
 #elif defined(CONFIG_MALT160T)
   /*Push-Pull*/
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /*Configure GPIO pin : RLY_G_Pin */
-  GPIO_InitStruct.Pin = RLY_G_Pin;
+  GPIO_InitStruct.Pin = DO_G_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(DO_G_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RLY_WR_Pin */
   GPIO_InitStruct.Pin = RLY_WR_Pin;
@@ -719,11 +734,11 @@ int main(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /*Configure GPIO pin : RLY_G_Pin */
-  GPIO_InitStruct.Pin = RLY_G_Pin;
+  GPIO_InitStruct.Pin = DO_G_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(DO_G_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RLY_WR_Pin */
   GPIO_InitStruct.Pin = RLY_WR_Pin;
@@ -733,6 +748,7 @@ int main(void)
   HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
 #endif
 
+  IoInputLDEnable();
 
   /*** OutputsCount Driver Test ***/
   if(OutputDriverLoopTest()!= OUTPUT_OK)
@@ -765,9 +781,9 @@ int main(void)
     LedTask(&hLed);
     DebugTask();
     MemoryTask(&Device.Memory);
-    StatusTask();
+    OutputStatusTask();
     UpTimeIncrementTask();
-
+    IoTask(&Device.Output);
     Device.Status.MainCycleTime = HAL_GetTick() - timestamp;
 
 
@@ -984,13 +1000,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, LIVE_LED_Pin|RLY_WR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, RLY_G_Pin|EEP_ON_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, DO_G_Pin|EEP_ON_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : RLY_CLK_Pin RLY_MOSI_Pin */
   GPIO_InitStruct.Pin = RLY_CLK_Pin|RLY_MOSI_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RLY_MISO_Pin */
@@ -1027,12 +1043,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : RLY_G_Pin */
-  GPIO_InitStruct.Pin = RLY_G_Pin;
+  /*Configure GPIO pin : DO_G_Pin */
+  GPIO_InitStruct.Pin = DO_G_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RLY_G_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(DO_G_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RLY_WR_Pin */
   GPIO_InitStruct.Pin = RLY_WR_Pin;
@@ -1048,9 +1064,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(EEP_ON_GPIO_Port, &GPIO_InitStruct);
 
-  /* USER CODE BEGIN MX_GPIO_Init */
-  ConsoleWrite("Hello World");
-  /* USER CODE END MX_GPIO_Init */
 }
 
 /* USER CODE BEGIN 4 */

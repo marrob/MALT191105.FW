@@ -87,23 +87,26 @@ extern LedHandle_Type    hLed;
 #if  defined(CONFIG_MALT160T)
   #define DEVICE_FIRST_NAME           "MALT160T"
   #define DEVICE_PCB                  "V00"
-  #define DEVICE_OUTPUT_COUNT         160
+  #define DEVICE_OUTPUTS_COUNT        160
+  #define DEVICE_INPUTS_COUNT         0
   #define DEVICE_BLOCK_SIZE           4
-  #define DEVICE_BLOCKS               DEVICE_OUTPUT_COUNT/8/4
+  #define DEVICE_BLOCKS               DEVICE_OUTPUTS_COUNT/8/4
   #define DEVICE_FAMILY_CODE          0x15
   #define DEVICE_OPTION_CODE          0x05
 #elif defined(CONFIG_MALT132)
   #define DEVICE_FIRST_NAME           "MALT132"
   #define DEVICE_PCB                  "V00"
-  #define DEVICE_OUTPUT_COUNT         32
+  #define DEVICE_OUTPUTS_COUNT        32
+  #define DEVICE_INPUTS_COUNT         0
   #define DEVICE_BLOCK_SIZE           4
-  #define DEVICE_BLOCKS               DEVICE_OUTPUT_COUNT/8/4
+  #define DEVICE_BLOCKS               DEVICE_OUTPUTS_COUNT/8/4
   #define DEVICE_FAMILY_CODE          0x03
   #define DEVICE_OPTION_CODE          0x00
 #elif defined(CONFIG_MALT23THV)
   #define DEVICE_FIRST_NAME           "MALT23THV"
   #define DEVICE_PCB                  "V00"
-  #define DEVICE_OUTPUT_COUNT         24
+  #define DEVICE_OUTPUTS_COUNT        24
+ #define DEVICE_INPUTS_COUNT          0
   #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
   #define DEVICE_BLOCKS               1
   #define DEVICE_FAMILY_CODE          0x03
@@ -111,7 +114,8 @@ extern LedHandle_Type    hLed;
 #elif defined(CONFIG_MALT16PIN)
   #define DEVICE_FIRST_NAME           "MALT16PIN"
   #define DEVICE_PCB                  "V00"
-  #define DEVICE_OUTPUT_COUNT         16
+  #define DEVICE_OUTPUTS_COUNT        16
+  #define DEVICE_INPUTS_COUNT         0
   #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
   #define DEVICE_BLOCKS               1
   #define DEVICE_FAMILY_CODE          0x05
@@ -119,7 +123,8 @@ extern LedHandle_Type    hLed;
 #elif defined(CONFIG_MALT40IO)
   #define DEVICE_FIRST_NAME           "MALT40IO"
   #define DEVICE_PCB                  "V00"
-  #define DEVICE_OUTPUT_COUNT         80
+  #define DEVICE_OUTPUTS_COUNT        40
+  #define DEVICE_INPUTS_COUNT         40
   #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
   #define DEVICE_BLOCKS               1
   #define DEVICE_FAMILY_CODE          0x01
@@ -128,6 +133,11 @@ extern LedHandle_Type    hLed;
 #error "Imserelten konfiguracio"
 #endif
 
+#if (DEVICE_INPUTS_COUNT !=0 && DEVICE_OUTPUTS_COUNT !=0)
+  #if DEVICE_INPUTS_COUNT != DEVICE_OUTPUTS_COUNT
+    #error "Kimenetek és a bemenetek szamanak egyeznie kell"
+  #endif
+#endif
 
 #define CARD_RX_ADDRESS             0x15510000
 #define CARD_TX_ADDRESS             0x15520000
@@ -178,8 +188,8 @@ void ConsoleWrite(char *str);
 #define DIP7_GPIO_Port GPIOB
 #define DIP8_Pin GPIO_PIN_2
 #define DIP8_GPIO_Port GPIOB
-#define RLY_G_Pin GPIO_PIN_12
-#define RLY_G_GPIO_Port GPIOB
+#define DO_G_Pin GPIO_PIN_12
+#define DO_G_GPIO_Port GPIOB
 #define RLY_WR_Pin GPIO_PIN_8
 #define RLY_WR_GPIO_Port GPIOA
 #define EEP_ON_Pin GPIO_PIN_4
@@ -187,12 +197,20 @@ void ConsoleWrite(char *str);
 /* USER CODE BEGIN Private defines */
 
 #if defined(CONFIG_MALT40IO)
+
+  /*1*/
+  #undef DO_G_Pin
+  #undef DO_G_GPIO_Port
+
+  #define DO_G_Pin GPIO_PIN_7
+  #define DO_G_GPIO_Port GPIOB
+
+  /*2*/
   #undef RLY_WR_Pin
-  #define RLY_WR_Pin GPIO_PIN_6
-
   #undef RLY_WR_GPIO_Port
-  #define RLY_WR_GPIO_Port GPIOB
 
+  #define RLY_WR_Pin GPIO_PIN_6
+  #define RLY_WR_GPIO_Port GPIOB
 
   #define DI_LD_Pin  GPIO_PIN_8
   #define DI_LD_GPIO_Port GPIOA

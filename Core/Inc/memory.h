@@ -48,7 +48,7 @@ typedef struct _MemoryTypeDef
   uint32_t BootUpCounter;
   int8_t   Test[sizeof(MEM_TEST_CONTENT)];
 
-  uint32_t Counters[DEVICE_OUTPUT_COUNT];
+  uint32_t Counters[DEVICE_OUTPUTS_COUNT];
 
   uint8_t  CounterSaveRequiedFlag;
   uint32_t SaveingTimeMs;

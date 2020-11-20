@@ -86,12 +86,12 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
        return MEM_FAIL;
 
 
-     for(int i=0; i < DEVICE_OUTPUT_COUNT; i++)
+     for(int i=0; i < DEVICE_OUTPUTS_COUNT; i++)
      {
        mem->Counters[i]=0;
-       status = MemoryLowWrite(mem->Address.Counters + i * (sizeof(mem->Counters)/DEVICE_OUTPUT_COUNT),
+       status = MemoryLowWrite(mem->Address.Counters + i * (sizeof(mem->Counters)/DEVICE_OUTPUTS_COUNT),
                              &mem->Counters[i],
-                             sizeof(mem->Counters)/DEVICE_OUTPUT_COUNT);
+                             sizeof(mem->Counters)/DEVICE_OUTPUTS_COUNT);
        if (status != HAL_OK)
          break;
      }
@@ -132,11 +132,11 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
     status = MemoryLowRead(mem->Address.SerialNumber, &mem->SerialNumber,sizeof(mem->SerialNumber));
     mem->SerialNumber &= 0x00FFFFFF;
 
-    for(uint8_t i = 0; i < DEVICE_OUTPUT_COUNT; i++)
+    for(uint8_t i = 0; i < DEVICE_OUTPUTS_COUNT; i++)
     {
-        status = MemoryLowRead(mem->Address.Counters + i * (sizeof(mem->Counters)/DEVICE_OUTPUT_COUNT),
+        status = MemoryLowRead(mem->Address.Counters + i * (sizeof(mem->Counters)/DEVICE_OUTPUTS_COUNT),
                               &mem->Counters[i],
-                              sizeof(mem->Counters)/DEVICE_OUTPUT_COUNT);
+                              sizeof(mem->Counters)/DEVICE_OUTPUTS_COUNT);
         if(status != HAL_OK)
           return MEM_FAIL;
     }
@@ -163,7 +163,7 @@ uint32_t MemoryChangeSerailNumber(MemoryTypeDef *mem, uint32_t serialnumber)
 
 void MemoryResetCounters(MemoryTypeDef *mem)
 {
-  for(uint8_t i=0; i < DEVICE_OUTPUT_COUNT; i++)
+  for(uint8_t i=0; i < DEVICE_OUTPUTS_COUNT; i++)
     mem->Counters[i]=0;
 
   mem->CounterSaveRequiedFlag = 1;
@@ -178,11 +178,11 @@ void MemoryTask(MemoryTypeDef *mem)
   {
     timestamp = HAL_GetTick();
 
-    for(uint8_t i = 0; i < DEVICE_OUTPUT_COUNT; i++)
+    for(uint8_t i = 0; i < DEVICE_OUTPUTS_COUNT; i++)
     {
-      status = MemoryLowWrite(mem->Address.Counters + i * (sizeof(mem->Counters)/DEVICE_OUTPUT_COUNT),
+      status = MemoryLowWrite(mem->Address.Counters + i * (sizeof(mem->Counters)/DEVICE_OUTPUTS_COUNT),
                               &mem->Counters[i],
-                              (sizeof(mem->Counters)/DEVICE_OUTPUT_COUNT));
+                              (sizeof(mem->Counters)/DEVICE_OUTPUTS_COUNT));
       if (status != HAL_OK)
         break;
     }
