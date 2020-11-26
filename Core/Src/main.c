@@ -13,7 +13,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
-#include <output.h>
+#include <io.h>
 #include "common.h"
 #include "LiveLed.h"
 #include "memory.h"
@@ -42,8 +42,7 @@ typedef struct _AppTypeDef
   uint8_t Options;
   uint32_t SerialNumber;
   MemoryTypeDef Memory;
-  IoOutputTypeDef Output;
-  IoInputTypeDef Input;
+  IoTypeDef Io;
   CanBusSpeedTypeDef *CanSpeed;
 
 
@@ -138,7 +137,6 @@ CanBusSpeedTypeDef CanSpeeds[] =
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
-void MX_CAN_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
@@ -199,7 +197,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
          * Ez itt egy lassú művelet
          * */
         for(uint8_t i=0; i < DEVICE_OUTPUTS_COUNT; i++)
-            Device.Memory.Counters[i] = Device.Output.Counters[i];
+            Device.Memory.Counters[i] = Device.Io.Output.Counters[i];
 
         if(Device.Status.MemFail == 0)
         {
@@ -237,49 +235,49 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 0)
     {
       Device.Req.OneOff++;
-      OutputOneOff(&Device.Output, frame[2]);
+      OutputOneOff(&Device.Io, frame[2]);
     }
     /***  Set One Output ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 1)
     {
       Device.Req.OneOn++;
-      OutpuOneOn(&Device.Output,frame[2]);
+      OutpuOneOn(&Device.Io,frame[2]);
     }
     /*** Clr Several Output ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x00)
     {
       Device.Req.SeveralOff++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
-      OutputOffSeveral(&Device.Output,temp, frame[7]);
+      OutputOffSeveral(&Device.Io,temp, frame[7]);
     }
     /***  Set Several Output ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x01)
     {
       Device.Req.SeveralOn++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
-      OutputOnSeveral(&Device.Output, temp, frame[7]);
+      OutputOnSeveral(&Device.Io, temp, frame[7]);
     }
     /*** Set Toogle Several Output***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x02)
     {
       Device.Req.SeveralToogle++;
       uint8_t temp[] = {frame[2],frame[3], frame[4], frame[5]};
-      OutputSeveralToogle(&Device.Output, temp, frame[7]);
+      OutputSeveralToogle(&Device.Io, temp, frame[7]);
     }
     /*** Get Output Ports Status ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x04 /*&& frame[2] == 0x01 ez nem  kelle hogy feldologzási feltétel legyen 20.11.20*/)
     {
       Device.Req.StatusOutput++;
-      Device.Output.StatusAutoSendEnable = frame[2];
-      memset(Device.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
+      Device.Io.Output.StatusAutoSendEnable = frame[2];
+      memset(Device.Io.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
     }
 
     /*** Get Inputs Ports Status ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x07 /*&& frame[2] == 0x01*/)
     {
       Device.Req.StatusInput++;
-      Device.Input.StatusAutoSendEnable = frame[2];
-      memset(Device.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
+      Device.Io.Input.StatusAutoSendEnable = frame[2];
+      memset(Device.Io.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
     }
 
     /*** Host Start Request ToDo: Request Counters Save***/
@@ -293,15 +291,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0x03 && frame[6]== 0x06)
     {
       Device.Req.Reset++;
-      OutputReset(&Device.Output);
-      memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+      OutputReset(&Device.Io);
+      memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
     /* Request Port Counter Reset */
     else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0x0EE && frame[2]== 0x00)
     {
       Device.Req.ResetRlyCnt++;
       MemoryResetCounters(&Device.Memory);
-      memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+      memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
     /*** Request Get Port Counter ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x01)
@@ -314,8 +312,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
        uint8_t port = frame[3];
        uint8_t value[]={frame[4],frame[5],frame[6], frame[7] };
-       OutputCounterSet(&Device.Output, port,*((uint32_t*)value) );
-       memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+       OutputCounterSet(&Device.Io, port,*((uint32_t*)value) );
+       memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
     /*** Request Save Port Counters ***/
     else if (frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x03)
@@ -326,7 +324,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
        * Ez itt egy lassú művelet
        * */
       for(uint8_t i=0; i < DEVICE_OUTPUTS_COUNT; i++)
-          Device.Memory.Counters[i] = Device.Output.Counters[i];
+          Device.Memory.Counters[i] = Device.Io.Output.Counters[i];
 
       if(Device.Status.MemFail == 0)
       {
@@ -337,7 +335,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       {
         Device.Status.MemFail++;
       }
-      memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+      memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
     }
     /*** Request Serial Number  ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xDE && frame[2] == 0xF5)
@@ -378,7 +376,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       }
       else
       {
-        memset(Device.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+        memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
       }
     }
     else
@@ -391,7 +389,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 void CanRespRlyCnt(uint8_t relaynumber)
 {
   Device.Resp.RelayCounter++;
-  uint32_t value = OutputCounterGet(&Device.Output, relaynumber);
+  uint32_t value = OutputCounterGet(&Device.Io, relaynumber);
   uint8_t data[] = { DEVICE_FAMILY_CODE, 0xEE, 0x01, relaynumber, 0xFF, 0xFF, 0xFF, 0xFF };
   memcpy(data + sizeof(value), &value, sizeof(value));
   CanRespSend(Device.Address, data, sizeof(data));
@@ -453,7 +451,7 @@ void OutputStatusTask(void)
     {
       if(HAL_GetTick() - lastSentTimestamp >= 10  /*Device.CanSpeed->StatusTxDelayMs*/)
       {
-        if(Device.Output.ChangedBlocks[block])
+        if(Device.Io.Output.ChangedBlocks[block])
         {
 #ifdef DEBUG_STATUS
           uint8_t data[] = { DEVICE_FAMILY_CODE, 0x04, 0x00, 0x00, 0x00, 0x00,  Device.Resp.StatusOutput};
@@ -467,7 +465,7 @@ void OutputStatusTask(void)
            * 3 -> 12..15
            * 4 -> 16..19
            */
-          memcpy(data + 2, Device.Output.CurState + block * DEVICE_BLOCK_SIZE, DEVICE_BLOCK_SIZE);
+          memcpy(data + 2, Device.Io.Output.CurState + block * DEVICE_BLOCK_SIZE, DEVICE_BLOCK_SIZE);
 
           if(CanRespSend(Device.Address, data, sizeof(data))== HAL_OK)
           {
@@ -478,7 +476,7 @@ void OutputStatusTask(void)
             StringPlusDataToHexaString(data, buffer, sizeof(data));
             DeviceDbgLog(buffer);
 #endif
-            Device.Output.ChangedBlocks[block] = 0;
+            Device.Io.Output.ChangedBlocks[block] = 0;
             Device.Resp.Status++;
           }
         }
@@ -495,8 +493,8 @@ void OutputStatusTask(void)
   else
   {
     block = 0;
-    if(Device.Output.StatusAutoSendEnable)
-      OutputChangedBlocksUpdate(&Device.Output);
+    if(Device.Io.Output.StatusAutoSendEnable)
+      OutputChangedBlocksUpdate(&Device.Io);
   }
 }
 
@@ -560,7 +558,7 @@ void DebugTask(void)
     sprintf(buff,"MemLoadTime:   %04lums | SaveingTime:  %04lums",Device.Memory.LoadTimeMs, Device.Memory.SaveingTimeMs);
     ConsoleWrite(buff);
     ConsoleWrite(VT100_CUP("12","0"));
-    sprintf(buff,"StatusAutoSend:%d      |", Device.Output.StatusAutoSendEnable);
+    sprintf(buff,"StatusAutoSend:%d      |", Device.Io.Output.StatusAutoSendEnable);
     ConsoleWrite(buff);
 
     ConsoleWrite(VT100_CUP("15","0"));
@@ -682,14 +680,14 @@ int main(void)
     memcpy(Device.Name, Device.Memory.Name, DEVICE_NAME_SIZE);
     Device.CardType = Device.Memory.CardType;
     Device.Options = Device.Memory.Options;
-    Device.Output.Count = Device.Memory.OutputsCount;
+    Device.Io.Count = Device.Memory.OutputsCount;
     Device.SerialNumber = Device.Memory.SerialNumber;
 
-    for(uint8_t i=0; i < Device.Output.Count; i++)
-      Device.Output.Counters[i]=Device.Memory.Counters[i];
+    for(uint8_t i=0; i < Device.Io.Count; i++)
+      Device.Io.Counters[i]=Device.Memory.Counters[i];
 #else
     for(uint8_t i=0; i < DEVICE_OUTPUTS_COUNT; i++)
-      Device.Output.Counters[i]=Device.Memory.Counters[i];
+      Device.Io.Output.Counters[i]=Device.Memory.Counters[i];
 #endif
   }
   DeviceUsrLog("SerialNumber:%lu, BootUpCounter:%lu", Device.Memory.SerialNumber, Device.Memory.BootUpCounter);
@@ -718,6 +716,8 @@ int main(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(DI_LD_GPIO_Port, &GPIO_InitStruct);
+
+  IoInputLDEnable();
 
 #elif defined(CONFIG_MALT160T)
   /*Push-Pull*/
@@ -760,7 +760,7 @@ int main(void)
   HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
 #endif
 
-  IoInputLDEnable();
+
 
   /*** OutputsCount Driver Test ***/
   if(OutputDriverLoopTest()!= OUTPUT_OK)
@@ -771,9 +771,9 @@ int main(void)
   }
 
   /*** Defaults ***/
-  OutputReset(&Device.Output);
+  OutputReset(&Device.Io);
   OutputEnable();
-  memset(Device.Output.ChangedBlocks, 0x00, DEVICE_BLOCKS);
+  memset(Device.Io.Output.ChangedBlocks, 0x00, DEVICE_BLOCKS);
   Device.Address = GetAddress();
   Device.Version = DEVICE_FW;
   Device.CanSpeed = &CanSpeeds[GetSpeed()];
@@ -782,8 +782,8 @@ int main(void)
   CanInit(Device.CanSpeed);
   CanAskAllInfoResponse();
 
-  Device.Output.StatusAutoSendEnable = 0;
-  Device.Input.StatusAutoSendEnable = 0;
+  Device.Io.Output.StatusAutoSendEnable = 0;
+  Device.Io.Input.StatusAutoSendEnable = 0;
 
   /* USER CODE END 2 */
 
@@ -805,7 +805,7 @@ int main(void)
     if((HAL_GetTick() - timestamp2) > 5)
     {
         timestamp2 = HAL_GetTick();
-        IoTask(&Device.Output, &Device.Input);
+        IoTask(&Device.Io);
     }
     /* USER CODE END WHILE */
 
@@ -947,7 +947,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

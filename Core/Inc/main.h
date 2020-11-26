@@ -79,8 +79,10 @@ extern LedHandle_Type    hLed;
  * MALT23HV     0x03        0x10
  */
 
-//#define CONFIG_MALT23THV
+
 //#define CONFIG_MALT160T
+//#define CONFIG_MALT132
+//#define CONFIG_MALT23THV
 //#define CONFIG_MALT16PIN
 #define CONFIG_MALT40IO
 
@@ -125,8 +127,8 @@ extern LedHandle_Type    hLed;
   #define DEVICE_PCB                  "V00"
   #define DEVICE_OUTPUTS_COUNT        40
   #define DEVICE_INPUTS_COUNT         40
-  #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
-  #define DEVICE_BLOCKS               1
+  #define DEVICE_BLOCK_SIZE           4
+  #define DEVICE_BLOCKS               2
   #define DEVICE_FAMILY_CODE          0x01
   #define DEVICE_OPTION_CODE          0x00
 #else
@@ -196,6 +198,7 @@ void ConsoleWrite(char *str);
 #define EEP_ON_GPIO_Port GPIOB
 #define DI_CE_Pin GPIO_PIN_5
 #define DI_CE_GPIO_Port GPIOB
+void   MX_CAN_Init(void);
 /* USER CODE BEGIN Private defines */
 
 #if defined(CONFIG_MALT40IO)
