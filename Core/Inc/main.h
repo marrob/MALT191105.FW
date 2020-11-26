@@ -194,6 +194,8 @@ void ConsoleWrite(char *str);
 #define RLY_WR_GPIO_Port GPIOA
 #define EEP_ON_Pin GPIO_PIN_4
 #define EEP_ON_GPIO_Port GPIOB
+#define DI_CE_Pin GPIO_PIN_5
+#define DI_CE_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 #if defined(CONFIG_MALT40IO)

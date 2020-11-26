@@ -17,7 +17,7 @@ inline static void OutputWrite(void);
 
 /* ---------------------------------------------------------------------------*/
 
-void IoInit(OutputTypeDef *context)
+void IoInit(IoOutputTypeDef *context)
 {
 
 }
@@ -25,7 +25,7 @@ void IoInit(OutputTypeDef *context)
 /*
  * k: 0..DEVICE_OUTPUT_COUNT-1
  */
-void OutpuOneOn(OutputTypeDef *h, uint8_t k)
+void OutpuOneOn(IoOutputTypeDef *h, uint8_t k)
 {
   memcpy(h->PreState, h->CurState, SPI_IO_ARRAY_SIZE);
   uint8_t temp[SPI_IO_ARRAY_SIZE];
@@ -40,7 +40,7 @@ void OutpuOneOn(OutputTypeDef *h, uint8_t k)
 /*
  * k: 0..DEVICE_OUTPUT_COUNT-1
  */
-void OutputOneOff(OutputTypeDef *h, uint8_t k)
+void OutputOneOff(IoOutputTypeDef *h, uint8_t k)
 {
   memcpy(h->PreState, h->CurState, SPI_IO_ARRAY_SIZE);
   uint8_t temp[SPI_IO_ARRAY_SIZE];
@@ -54,7 +54,7 @@ void OutputOneOff(OutputTypeDef *h, uint8_t k)
 //!  Update(h->CurState);
 }
 
-void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block)
+void OutputSeveralToogle(IoOutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, SPI_IO_ARRAY_SIZE);
   for(uint8_t i = 0; i < DEVICE_BLOCK_SIZE; i++)
@@ -76,7 +76,7 @@ void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block)
  * Ez egyszerre csak 4-bájtot tud modositani
  * A 160 relénél 5 blokk van (5x4bájt =20bájt * 8 bit =160).
  */
-void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
+void OutputOffSeveral(IoOutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, SPI_IO_ARRAY_SIZE);
   for(uint8_t i=0; i < DEVICE_BLOCK_SIZE; i++)
@@ -85,7 +85,7 @@ void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
   Update(h->CurState);
 }
 
-void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block)
+void OutputOnSeveral(IoOutputTypeDef *h, uint8_t *several, uint8_t block)
 {
   memcpy(h->PreState, h->CurState, SPI_IO_ARRAY_SIZE);
   for(uint8_t i=0; i < DEVICE_BLOCK_SIZE; i++)
@@ -124,7 +124,7 @@ void ArrayToolsU8SetBit(const uint16_t index, void* array)
 }
 
 
-void OutputReset(OutputTypeDef *h)
+void OutputReset(IoOutputTypeDef *h)
 {
   memset(h->PreState, 0x00, SPI_IO_ARRAY_SIZE);
   memset(h->CurState, 0x00, SPI_IO_ARRAY_SIZE);
@@ -176,7 +176,7 @@ void Update(const uint8_t *state)
 
 
 
-void OutputChangedBlocksUpdate(OutputTypeDef *h)
+void OutputChangedBlocksUpdate(IoOutputTypeDef *h)
 {
   uint8_t dif[SPI_IO_ARRAY_SIZE];
 
@@ -227,7 +227,7 @@ static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter)
 /*
  * relaynumber: 0..RELAY_COUNT-1
  */
-uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber)
+uint32_t OutputCounterGet(IoOutputTypeDef *h, uint8_t relaynumber)
 {
   if(relaynumber > DEVICE_OUTPUTS_COUNT)
   {
@@ -236,7 +236,7 @@ uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber)
   return h->Counters[relaynumber];
 }
 
-uint32_t OutputCounterSet(OutputTypeDef *h, uint8_t relaynumber, uint32_t value)
+uint32_t OutputCounterSet(IoOutputTypeDef *h, uint8_t relaynumber, uint32_t value)
 {
   if(relaynumber > DEVICE_OUTPUTS_COUNT)
   {
@@ -260,16 +260,17 @@ void IoInputLDDiasable(void)
 }
 
 
-void IoTask(OutputTypeDef *context)
+void IoTask(IoOutputTypeDef *hOutput, IoInputTypeDef *hInput)
 {
-    uint8_t i,j;
+
     uint8_t buffer[SPI_IO_ARRAY_SIZE];
     uint8_t input[SPI_IO_ARRAY_SIZE];
     uint8_t output[SPI_IO_ARRAY_SIZE];
 
-    uint8_t *state = context->CurState;
+    uint8_t *state = hOutput->CurState;
 
   #if defined(CONFIG_MALT160T)
+    uint8_t i,j;
     j=0;
     for(i=0; i < SPI_IO_ARRAY_SIZE/2; i++)
     {
@@ -287,21 +288,36 @@ void IoTask(OutputTypeDef *context)
   #endif
 
   #if defined(CONFIG_MALT40IO)
-    InputLoad();
-  #endif
+   // InputLoad();
+    uint8_t output_buffer[10];
+    uint8_t output_input[10];
 
+     memset(output_buffer, 0x00, 10);
+
+
+    for(uint8_t j=0, i=5; i; i--){
+      output_buffer[i-1] = /*0x02;//*/ hOutput->CurState[j++];//0xFF;
+    }
+
+    HAL_SPI_TransmitReceive(&hspi2, output_buffer, output_input, 10, 100);
+
+    OutputWrite();
+  #endif
+/*
     memset(input, 0x00, sizeof(input));
 
-    /*Ezt egyszer hardveresen kell megcsinalni*/
+    //Ezt egyszer hardveresen kell megcsinalni
     j = SPI_IO_ARRAY_SIZE-1;
     for(i=0; i< SPI_IO_ARRAY_SIZE; i++)
       output[j--] = buffer[i];
 
     HAL_SPI_TransmitReceive(&hspi2, output, input, SPI_IO_ARRAY_SIZE, 100);
 
-
-
     OutputWrite();
+
+*/
+
+
 
 }
 

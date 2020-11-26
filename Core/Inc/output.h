@@ -32,33 +32,37 @@ typedef struct
   uint8_t CurState[SPI_IO_ARRAY_SIZE];
   uint32_t Counters[DEVICE_OUTPUTS_COUNT];
   uint8_t ChangedBlocks[DEVICE_BLOCKS];
+  uint8_t StatusAutoSendEnable;
+}IoOutputTypeDef;
 
-  struct{
+
+typedef struct{
+
   uint8_t CurState[SPI_IO_ARRAY_SIZE];
+  uint8_t ChangedBlocks[DEVICE_BLOCKS];
+  uint8_t StatusAutoSendEnable;
 
-  }Inputs;
-}OutputTypeDef;
+}IoInputTypeDef;
 
-
-void IoInit(OutputTypeDef *context);
+void IoInit(IoOutputTypeDef *context);
 
 void OutputEnable(void);
 
-void OutpuOneOn(OutputTypeDef *h, uint8_t k);
-void OutputOneOff(OutputTypeDef *h, uint8_t k);
+void OutpuOneOn(IoOutputTypeDef *hOutput, uint8_t k);
+void OutputOneOff(IoOutputTypeDef *hOutput, uint8_t k);
 
-void OutputOffSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);
-void OutputOnSeveral(OutputTypeDef *h, uint8_t *several, uint8_t block);
-void OutputSeveralToogle(OutputTypeDef *h, uint8_t *several, uint8_t block);
+void OutputOffSeveral(IoOutputTypeDef *hOutput, uint8_t *several, uint8_t block);
+void OutputOnSeveral(IoOutputTypeDef *hOutput, uint8_t *several, uint8_t block);
+void OutputSeveralToogle(IoOutputTypeDef *hOutput, uint8_t *several, uint8_t block);
 
-uint32_t OutputCounterGet(OutputTypeDef *h, uint8_t relaynumber);
-uint32_t OutputCounterSet(OutputTypeDef *h, uint8_t relaynumber, uint32_t value);
+uint32_t OutputCounterGet(IoOutputTypeDef *hOutput, uint8_t relaynumber);
+uint32_t OutputCounterSet(IoOutputTypeDef *hOutput, uint8_t relaynumber, uint32_t value);
 
-void OutputChangedBlocksUpdate(OutputTypeDef *h);
+void OutputChangedBlocksUpdate(IoOutputTypeDef *hOutput);
 
 
 void OutputSpiTxRx(void *transmitt, void *receive, size_t size);
-void OutputReset(OutputTypeDef *h);
+void OutputReset(IoOutputTypeDef *h);
 
 uint8_t OutputDriverLoopTest(void);
 
@@ -67,7 +71,7 @@ void IoInputLDEnable(void);
 void IoInputLDDiasable(void);
 
 
-void IoTask(OutputTypeDef *context);
+void IoTask(IoOutputTypeDef *hOutput, IoInputTypeDef *hInput);
 
 
 #endif /* SRC_RELAYS_H_ */

@@ -42,9 +42,11 @@ typedef struct _AppTypeDef
   uint8_t Options;
   uint32_t SerialNumber;
   MemoryTypeDef Memory;
-  OutputTypeDef Output;
+  IoOutputTypeDef Output;
+  IoInputTypeDef Input;
   CanBusSpeedTypeDef *CanSpeed;
-  uint8_t StatusAutoSendEnable;
+
+
 
   struct _statusCounters
   {
@@ -65,7 +67,8 @@ typedef struct _AppTypeDef
     uint32_t AskAllInfo;
     uint32_t Reset;
     uint32_t HostStart;
-    uint32_t Status;
+    uint32_t StatusOutput;
+    uint32_t StatusInput;
     uint32_t OneOn;
     uint32_t OneOff;
     uint32_t SeveralOn;
@@ -230,46 +233,55 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
   else if(rxHeader.ExtId == (CARD_RX_ADDRESS | DEVICE_FAMILY_CODE << 8 | Device.Address))
   {
-    /***  Request Clr One  ***/
+    /***  Clr One Output ***/
     if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 0)
     {
       Device.Req.OneOff++;
       OutputOneOff(&Device.Output, frame[2]);
     }
-    /*** Request Set One ***/
+    /***  Set One Output ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 1)
     {
       Device.Req.OneOn++;
       OutpuOneOn(&Device.Output,frame[2]);
     }
-    /*** Request Clr Several ***/
+    /*** Clr Several Output ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x00)
     {
       Device.Req.SeveralOff++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOffSeveral(&Device.Output,temp, frame[7]);
     }
-    /*** Request Set Several ***/
+    /***  Set Several Output ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x01)
     {
       Device.Req.SeveralOn++;
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOnSeveral(&Device.Output, temp, frame[7]);
     }
-    /*** Request Toogle Several ***/
+    /*** Set Toogle Several Output***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x02)
     {
       Device.Req.SeveralToogle++;
       uint8_t temp[] = {frame[2],frame[3], frame[4], frame[5]};
       OutputSeveralToogle(&Device.Output, temp, frame[7]);
     }
-    /*** Request Status ***/
-    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x04 && frame[2] == 0x01)
+    /*** Get Output Ports Status ***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x04 /*&& frame[2] == 0x01 ez nem  kelle hogy feldologzási feltétel legyen 20.11.20*/)
     {
-      Device.Req.Status++;
-      Device.StatusAutoSendEnable = frame[2];
+      Device.Req.StatusOutput++;
+      Device.Output.StatusAutoSendEnable = frame[2];
       memset(Device.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
     }
+
+    /*** Get Inputs Ports Status ***/
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x07 /*&& frame[2] == 0x01*/)
+    {
+      Device.Req.StatusInput++;
+      Device.Input.StatusAutoSendEnable = frame[2];
+      memset(Device.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
+    }
+
     /*** Host Start Request ToDo: Request Counters Save***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0xEE && frame[2] == 0x11)
     {
@@ -444,7 +456,7 @@ void OutputStatusTask(void)
         if(Device.Output.ChangedBlocks[block])
         {
 #ifdef DEBUG_STATUS
-          uint8_t data[] = { DEVICE_FAMILY_CODE, 0x04, 0x00, 0x00, 0x00, 0x00,  Device.Resp.Status};
+          uint8_t data[] = { DEVICE_FAMILY_CODE, 0x04, 0x00, 0x00, 0x00, 0x00,  Device.Resp.StatusOutput};
 #else
           uint8_t data[] = { DEVICE_FAMILY_CODE, 0x04, 0x00, 0x00, 0x00, 0x00,  block};
 #endif
@@ -483,7 +495,7 @@ void OutputStatusTask(void)
   else
   {
     block = 0;
-    if(Device.StatusAutoSendEnable)
+    if(Device.Output.StatusAutoSendEnable)
       OutputChangedBlocksUpdate(&Device.Output);
   }
 }
@@ -548,7 +560,7 @@ void DebugTask(void)
     sprintf(buff,"MemLoadTime:   %04lums | SaveingTime:  %04lums",Device.Memory.LoadTimeMs, Device.Memory.SaveingTimeMs);
     ConsoleWrite(buff);
     ConsoleWrite(VT100_CUP("12","0"));
-    sprintf(buff,"StatusAutoSend:%d      |", Device.StatusAutoSendEnable);
+    sprintf(buff,"StatusAutoSend:%d      |", Device.Output.StatusAutoSendEnable);
     ConsoleWrite(buff);
 
     ConsoleWrite(VT100_CUP("15","0"));
@@ -558,7 +570,7 @@ void DebugTask(void)
     sprintf(buff,"AskAllInfo:    %06lu | Reset:        %06lu", Device.Req.AskAllInfo, Device.Req.Reset);
     ConsoleWrite(buff);
     ConsoleWrite(VT100_CUP("17","0"));
-    sprintf(buff,"HostStart:     %06lu | Status:       %06lu | OneOn:        %06lu", Device.Req.HostStart, Device.Req.Status, Device.Req.OneOn);
+    sprintf(buff,"HostStart:     %06lu | StatusOutput:       %06lu | OneOn:        %06lu", Device.Req.HostStart, Device.Req.StatusOutput, Device.Req.OneOn);
     ConsoleWrite(buff);
     ConsoleWrite(VT100_CUP("18","0"));
     sprintf(buff,"OneOff:        %06lu | SeveralOn:    %06lu | SeveralOff:   %06lu", Device.Req.OneOff, Device.Req.SeveralOn, Device.Req.SeveralOff);
@@ -770,6 +782,9 @@ int main(void)
   CanInit(Device.CanSpeed);
   CanAskAllInfoResponse();
 
+  Device.Output.StatusAutoSendEnable = 0;
+  Device.Input.StatusAutoSendEnable = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -783,10 +798,15 @@ int main(void)
     MemoryTask(&Device.Memory);
     OutputStatusTask();
     UpTimeIncrementTask();
-    IoTask(&Device.Output);
+
     Device.Status.MainCycleTime = HAL_GetTick() - timestamp;
 
-
+    static uint32_t timestamp2;
+    if((HAL_GetTick() - timestamp2) > 5)
+    {
+        timestamp2 = HAL_GetTick();
+        IoTask(&Device.Output, &Device.Input);
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -1002,6 +1022,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, DO_G_Pin|EEP_ON_Pin, GPIO_PIN_SET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(DI_CE_GPIO_Port, DI_CE_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pins : RLY_CLK_Pin RLY_MOSI_Pin */
   GPIO_InitStruct.Pin = RLY_CLK_Pin|RLY_MOSI_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
@@ -1057,12 +1080,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(RLY_WR_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : EEP_ON_Pin */
-  GPIO_InitStruct.Pin = EEP_ON_Pin;
+  /*Configure GPIO pins : EEP_ON_Pin DI_CE_Pin */
+  GPIO_InitStruct.Pin = EEP_ON_Pin|DI_CE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(EEP_ON_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
