@@ -9,11 +9,10 @@
 #include <io.h>
 
 /* Private function prototypes -----------------------------------------------*/
-static void Update(const uint8_t *state);
 static void ArrayToolsU8SetBit(const uint16_t index, void* array);
 static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter);
-inline static void InputLoad(void);
-inline static void OutputWrite(void);
+inline void InputLoad(void);
+inline void OutputWrite(void);
 
 /* ---------------------------------------------------------------------------*/
 
@@ -79,7 +78,7 @@ void OutputOffSeveral(IoTypeDef *h, uint8_t *several, uint8_t block)
   for(uint8_t i=0; i < DEVICE_BLOCK_SIZE; i++)
     h->Output.CurState[block * DEVICE_BLOCK_SIZE + i] &= ~several[i];
   CounterUpdate(h->Output.PreState, h->Output.CurState, h->Output.Counters);
-  }
+}
 
 void OutputOnSeveral(IoTypeDef *h, uint8_t *several, uint8_t block)
 {
@@ -124,17 +123,15 @@ void OutputReset(IoTypeDef *h)
   memset(h->Output.PreState, 0x00, IO_OUTPUT_ARRAY_SIZE);
   memset(h->Output.CurState, 0x00, IO_OUTPUT_ARRAY_SIZE);
 
-  /*Force Update*/
   IoTask(h);
 }
 
 void OutputChangedBlocksUpdate(IoTypeDef *h)
 {
   uint8_t dif[IO_OUTPUT_ARRAY_SIZE];
-
   for(uint8_t i = 0; i < IO_OUTPUT_ARRAY_SIZE; i++)
   {
-    dif[i] = h->Output.PreBlockState[i] ^ h->Output.CurState[i];
+    dif[i] = h->Output.PreState[i] ^ h->Output.CurState[i];
     if(dif[i])
     {
 
@@ -150,7 +147,24 @@ void OutputChangedBlocksUpdate(IoTypeDef *h)
       /*Az i/4-blockban volt változás mivel egy blokban 4bajt van*/
       h->Output.ChangedBlocks[i/DEVICE_BLOCK_SIZE] = 1;
       /*Tudomasul vettük a változást*/
-      h->Output.PreBlockState[i] = h->Output.CurState[i];
+      h->Output.PreState[i] = h->Output.CurState[i];
+    }
+  }
+}
+
+void IoChangedBlocksUpdate(IoTypeDef *h)
+{
+  uint8_t dif[IO_INPUT_ARRAY_SIZE];
+  for(uint8_t i = 0; i < IO_INPUT_ARRAY_SIZE; i++)
+  {
+    dif[i] = h->Input.PreState[i] ^ h->Input.CurState[i];
+    if(dif[i])
+    {
+
+      /*Az i/4-blockban volt változás mivel egy blokban 4bajt van*/
+      h->Input.ChangedBlocks[i/DEVICE_BLOCK_SIZE] = 1;
+      /*Tudomasul vettük a változást*/
+      h->Input.PreState[i] = h->Input.CurState[i];
     }
   }
 }
@@ -182,19 +196,14 @@ static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter)
 uint32_t OutputCounterGet(IoTypeDef *h, uint8_t relaynumber)
 {
   if(relaynumber > DEVICE_OUTPUTS_COUNT)
-  {
     return 0;
-  }
-  return h->Output.Counters[relaynumber];
+  else
+    return h->Output.Counters[relaynumber];
 }
 
-uint32_t OutputCounterSet(IoTypeDef *h, uint8_t relaynumber, uint32_t value)
+void OutputCounterSet(IoTypeDef *h, uint8_t relaynumber, uint32_t value)
 {
-  if(relaynumber > DEVICE_OUTPUTS_COUNT)
-  {
-    return 0;
-  }
-  else
+  if(relaynumber < DEVICE_OUTPUTS_COUNT)
   {
     h->Output.Counters[relaynumber] = value;
   }
@@ -216,9 +225,9 @@ void IoInputLDDiasable(void)
 void IoTask(IoTypeDef *context)
 {
   uint8_t output_buffer[IO_SPI_IO_ARRAY_SIZE];
-  uint8_t output_input[IO_SPI_IO_ARRAY_SIZE];
+  uint8_t input_buffer[IO_SPI_IO_ARRAY_SIZE];
   memset(output_buffer, 0x00, IO_SPI_IO_ARRAY_SIZE);
-  memset(output_input, 0x00, IO_SPI_IO_ARRAY_SIZE);
+  memset(input_buffer, 0x00, IO_SPI_IO_ARRAY_SIZE);
 
   #if defined(CONFIG_MALT160T)
     uint8_t buffer[IO_OUTPUT_ARRAY_SIZE];
@@ -236,19 +245,22 @@ void IoTask(IoTypeDef *context)
       j+=2;
     }
   #elif defined(CONFIG_MALT40IO)
-    /*SPI_IO_ARRAY_SIZE: 10byte*/
-    /*bajtok visszafelé*/
+     InputLoad();
     for(uint8_t j=0, i = IO_OUTPUT_ARRAY_SIZE; i; i--){
       output_buffer[i-1] = context->Output.CurState[j++];
     }
-    HAL_SPI_TransmitReceive(&hspi2, output_buffer, output_input, IO_SPI_IO_ARRAY_SIZE, 100);
+    HAL_SPI_TransmitReceive(&hspi2, output_buffer, input_buffer, IO_SPI_IO_ARRAY_SIZE, 100);
     OutputWrite();
+
+    for(uint8_t j=0, i = IO_SPI_IO_ARRAY_SIZE; j < IO_OUTPUT_ARRAY_SIZE ; i--, j++){
+      context->Input.CurState[j] = input_buffer[i-1];
+    }
+
   #elif defined(CONFIG_MALT132) || defined(CONFIG_MALT23THV) || defined(CONFIG_MALT16PIN)
-    /*bajtok visszafelé*/
     for(uint8_t j=0, i = IO_OUTPUT_ARRAY_SIZE; i; i--){
       output_buffer[i-1] = context->Output.CurState[j++];
     }
-    HAL_SPI_TransmitReceive(&hspi2, output_buffer, output_input, IO_SPI_IO_ARRAY_SIZE, 100);
+    HAL_SPI_TransmitReceive(&hspi2, output_buffer, input_buffer, IO_SPI_IO_ARRAY_SIZE, 100);
     OutputWrite();
   #else
     #error "Imserelten konfiguracio"
@@ -259,7 +271,7 @@ void IoTask(IoTypeDef *context)
 }
 
 #if (DEVICE_INPUTS_COUNT > 0)
-inline static void InputLoad(void){
+inline void InputLoad(void){
   HAL_GPIO_WritePin(DI_LD_GPIO_Port, DI_LD_Pin, GPIO_PIN_RESET);
   DelayUs(1);
   HAL_GPIO_WritePin(DI_LD_GPIO_Port, DI_LD_Pin, GPIO_PIN_SET);
@@ -267,7 +279,7 @@ inline static void InputLoad(void){
 }
 #endif
 
-inline static void OutputWrite(void){
+inline void OutputWrite(void){
   HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
   DelayUs(1);
   HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
@@ -291,8 +303,8 @@ uint8_t OutputDriverLoopTest(void)
   HAL_Delay(100);
 //}while(1);
   if(memcmp(testvector, result + IO_SPI_IO_ARRAY_SIZE, IO_SPI_IO_ARRAY_SIZE) == 0)
-    return OUTPUT_OK;
+    return IO_OK;
   else
-    return OUTPUT_FAIL;
+    return IO_FAIL;
 }
 

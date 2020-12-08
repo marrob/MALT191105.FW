@@ -5,16 +5,16 @@
  *      Author: Margit Robert
  */
 
-#ifndef SRC_RELAYS_H_
-#define SRC_OUTPUTS_H_
+#ifndef SRC_IO_H_
+#define SRC_IO_H_
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "common.h"
 
 /* Private defines -----------------------------------------------------------*/
-#define OUTPUT_OK            0
-#define OUTPUT_FAIL          1
+#define IO_OK            0
+#define IO_FAIL          1
 
 
 /*pl:
@@ -28,7 +28,7 @@
  */
 #define IO_SPI_IO_ARRAY_SIZE      (DEVICE_OUTPUTS_COUNT + DEVICE_INPUTS_COUNT)/8
 #define IO_OUTPUT_ARRAY_SIZE       DEVICE_OUTPUTS_COUNT / 8
-
+#define IO_INPUT_ARRAY_SIZE       DEVICE_INPUTS_COUNT / 8
 
 /* Exported types ------------------------------------------------------------*/
 typedef struct
@@ -36,15 +36,18 @@ typedef struct
   struct {
   uint32_t Count;
   uint8_t PreState[IO_OUTPUT_ARRAY_SIZE];
-  uint8_t PreBlockState[IO_OUTPUT_ARRAY_SIZE];
   uint8_t CurState[IO_OUTPUT_ARRAY_SIZE];
-  uint32_t Counters[IO_OUTPUT_ARRAY_SIZE];
+
   uint8_t ChangedBlocks[DEVICE_BLOCKS];
+
+  uint32_t Counters[DEVICE_OUTPUTS_COUNT];
   uint8_t StatusAutoSendEnable;
   }Output;
 
   struct{
-    uint8_t CurState[IO_SPI_IO_ARRAY_SIZE];
+    uint8_t PreState[IO_INPUT_ARRAY_SIZE];
+    uint8_t CurState[IO_INPUT_ARRAY_SIZE];
+
     uint8_t ChangedBlocks[DEVICE_BLOCKS];
     uint8_t StatusAutoSendEnable;
   }Input;
@@ -64,7 +67,7 @@ void OutputOnSeveral(IoTypeDef *h, uint8_t *several, uint8_t block);
 void OutputSeveralToogle(IoTypeDef *h, uint8_t *several, uint8_t block);
 
 uint32_t OutputCounterGet(IoTypeDef *h, uint8_t relaynumber);
-uint32_t OutputCounterSet(IoTypeDef *h, uint8_t relaynumber, uint32_t value);
+void OutputCounterSet(IoTypeDef *h, uint8_t relaynumber, uint32_t value);
 
 void OutputChangedBlocksUpdate(IoTypeDef *h);
 
@@ -77,6 +80,7 @@ uint8_t OutputDriverLoopTest(void);
 
 void IoInputLDEnable(void);
 void IoInputLDDiasable(void);
+void IoChangedBlocksUpdate(IoTypeDef *h);
 
 
 void IoTask(IoTypeDef *h);
