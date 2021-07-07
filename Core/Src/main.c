@@ -102,7 +102,6 @@ void LiveLedOn(void);
 void FailLedOn(void);
 void FailLedOff(void);
 
-void DebugTask(void);
 uint8_t GetAddress(void);
 uint8_t GetSpeed(void);
 
@@ -141,7 +140,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
 
   #ifdef DEBUG
-    DiagRxFrame(&hDiag,frame, rxHeader.DLC);
+  //! DiagRxFrame(&hDiag,frame, rxHeader.DLC);
   #endif
 
   if (rxHeader.ExtId == HOST_ADDRESS )
@@ -186,53 +185,63 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 0)
     {
       OutputOneOff(&Device.Io, frame[2]);
+      DiagAddFrame(&hDiag,0x01,DIAG_FRAME_TYPE_RX,'-');
     }
     /***  SetOneOutput ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x01 && frame[3] == 1)
     {
       OutpuOneOn(&Device.Io,frame[2]);
+      DiagAddFrame(&hDiag,0x01,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** ResetIo ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0x03 && frame[6]== 0x06)
     {
       OutputReset(&Device.Io);
       memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+      DiagAddFrame(&hDiag,0x03,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** ClrOutputst ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x00)
     {
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOffSeveral(&Device.Io,temp, frame[7]);
+      DiagAddFrame(&hDiag,0x03,DIAG_FRAME_TYPE_RX,'-');
     }
     /***  SetOutputs ***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x01)
     {
       uint8_t temp []= {frame[2], frame[3], frame[4], frame[5] };
       OutputOnSeveral(&Device.Io, temp, frame[7]);
+      DiagAddFrame(&hDiag,0x03,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** SetToogleOutputs***/
     else if(frame[0]== DEVICE_FAMILY_CODE && frame[1] == 0x03 && frame[6] == 0x02)
     {
       uint8_t temp[] = {frame[2],frame[3], frame[4], frame[5]};
       OutputSeveralToogle(&Device.Io, temp, frame[7]);
+      DiagAddFrame(&hDiag,0x03,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** GetOutputsStatus ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x04)
     {
       Device.Io.Output.StatusAutoSendEnable = frame[2];
       memset(Device.Io.Output.ChangedBlocks, 0x01, DEVICE_BLOCKS);
+      DiagAddFrame(&hDiag,0x04,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** GetOneInputStatus ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x06)
     {
       /*Todo:GetOneInputStatus meg kell valósitani
+       *
        */
+      DiagAddFrame(&hDiag,0x06,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** GetInputsStatus ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0x07)
     {
       Device.Io.Input.StatusAutoSendEnable = frame[2];
       memset(Device.Io.Input.ChangedBlocks, 0x01, DEVICE_BLOCKS);
+      DiagAddFrame(&hDiag,0x07,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** GetSerialNumber  ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xDE && frame[2] == 0xF5)
@@ -240,23 +249,27 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       uint8_t data[] = { DEVICE_FAMILY_CODE, 0xDE, 0xF0, 0xC3, 0xD8, 0x12, 0x00 };
       memcpy(data + 3, (uint8_t*)&Device.Memory.SerialNumber, DEVICE_SN_SIZE);
       CanRespSend(Device.Address, data, sizeof(data));
+      DiagAddFrame(&hDiag,0xDE,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** HostStart ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0xEE && frame[2] == 0x11)
     {
       uint8_t data[] = { DEVICE_FAMILY_CODE, 0xEE, 0x12, 0x01 };
       CanRespSend(Device.Address, data, sizeof(data));
+      DiagAddFrame(&hDiag,0xEE,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** CountersReset ***/
-    else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0x0EE && frame[2]== 0x00)
+    else if(frame[0] == DEVICE_FAMILY_CODE && frame [1] == 0xEE && frame[2]== 0x00)
     {
       MemoryResetCounters(&Device.Memory);
       memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+      DiagAddFrame(&hDiag,0xEE,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** GetCounter ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x01)
     {
       CanRespRlyCnt(frame[3]);
+      DiagAddFrame(&hDiag,0xEE,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** SetPortCounter ***/
     else if (frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x02)
@@ -265,6 +278,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
        uint8_t value[]={frame[4],frame[5],frame[6], frame[7] };
        OutputCounterSet(&Device.Io, port,*((uint32_t*)value) );
        memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+       DiagAddFrame(&hDiag,0xEE,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** SaveCounters ***/
     else if (frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xEE && frame[2] == 0x03)
@@ -279,6 +293,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
         hDiag.Status.MemFail++;
       }
       memset(Device.Io.Output.ChangedBlocks,0x01,DEVICE_BLOCKS);
+      DiagAddFrame(&hDiag,0xEE,DIAG_FRAME_TYPE_RX,'-');
     }
 
     /*** ReadEEPROM -> RespEEPROM ***/
@@ -298,6 +313,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
         uint8_t temp[] = {DEVICE_FAMILY_CODE, 0xFA, 0xF1, frame[3], frame[4], data[0], data[1] };
         CanRespSend(Device.Address,temp, sizeof(temp));
       }
+      DiagAddFrame(&hDiag,0xFA,DIAG_FRAME_TYPE_RX,'-');
     }
     /*** WriteEEPROM ***/
     else if(frame[0] == DEVICE_FAMILY_CODE && frame[1] == 0xFA && frame[2] == 0xF2)
@@ -319,6 +335,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
       hDiag.Status.UnknownFrame++;
     }
+
+    DiagAddFrame(&hDiag,0xFA,DIAG_FRAME_TYPE_RX,'-');
   }
 }
 
@@ -328,6 +346,7 @@ void CanRespRlyCnt(uint8_t relaynumber)
   uint8_t data[] = { DEVICE_FAMILY_CODE, 0xEE, 0x01, relaynumber, 0xFF, 0xFF, 0xFF, 0xFF };
   memcpy(data + sizeof(value), &value, sizeof(value));
   CanRespSend(Device.Address, data, sizeof(data));
+  DiagAddFrame(&hDiag,0xEE,DIAG_FRAME_TYPE_TX,'-');
 }
 
 /*** Ask All Info Response ***/
@@ -336,6 +355,7 @@ void RespInfo(void)
   uint8_t data[] = {0xF0, 0x01, DEVICE_FAMILY_CODE, Device.Address, DEVICE_OPTION_CODE, 0x00, 0x00};
   memcpy(data + sizeof (data) - sizeof(uint16_t), (uint8_t*)&Device.Version, sizeof(uint16_t));
   CanRespSend(Device.Address, data, sizeof(data));
+  DiagAddFrame(&hDiag,0xF0,DIAG_FRAME_TYPE_TX,'-');
 }
 
  inline static HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size)
@@ -352,7 +372,7 @@ void RespInfo(void)
   memcpy(buffer,frame, size);
   status = HAL_CAN_AddTxMessage(&hcan, &txHeader, buffer, &txMailbox);
 #ifdef DEBUG
-  DiagTxFrame(&hDiag, frame, size);
+//!  DiagTxFrame(&hDiag, frame, size);
 #endif
   hDiag.Status.CanTx++;
   if(status != HAL_OK)
@@ -539,7 +559,8 @@ int main(void)
 #ifdef DEBUG
   printf(VT100_ATTR_RED);
     DeviceUsrLog("This is a DEBUG version.");
-  printf(VT100_ATTR_RESET);
+    printf(VT100_ATTR_RESET);
+    DiagInit(&hDiag);
 #endif
 
   DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_FIRST_NAME, DEVICE_FW);

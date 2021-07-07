@@ -11,8 +11,7 @@
 /* Private function prototypes -----------------------------------------------*/
 static void ArrayToolsU8SetBit(const uint16_t index, void* array);
 static void CounterUpdate(uint8_t *pre, uint8_t *cur, uint32_t *relaycounter);
-inline void InputLoad(void);
-inline void OutputWrite(void);
+
 
 /* ---------------------------------------------------------------------------*/
 
@@ -245,44 +244,97 @@ void IoTask(IoTypeDef *context)
       j+=2;
     }
   #elif defined(CONFIG_MALT40IO)
-     InputLoad();
+    //input load
+    HAL_GPIO_WritePin(DI_LD_GPIO_Port, DI_LD_Pin, GPIO_PIN_RESET);
+    DelayUs(1);
+    HAL_GPIO_WritePin(DI_LD_GPIO_Port, DI_LD_Pin, GPIO_PIN_SET);
+    DelayUs(1);
+
     for(uint8_t j=0, i = IO_OUTPUT_ARRAY_SIZE; i; i--){
       output_buffer[i-1] = context->Output.CurState[j++];
     }
     HAL_SPI_TransmitReceive(&hspi2, output_buffer, input_buffer, IO_SPI_IO_ARRAY_SIZE, 100);
-    OutputWrite();
+
+    //outputs write
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
+    DelayUs(1);
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
 
     for(uint8_t j=0, i = IO_SPI_IO_ARRAY_SIZE; j < IO_OUTPUT_ARRAY_SIZE ; i--, j++){
       context->Input.CurState[j] = input_buffer[i-1];
     }
 
   #elif defined(CONFIG_MALT132) || defined(CONFIG_MALT23THV) || defined(CONFIG_MALT16PIN)
+
     for(uint8_t j=0, i = IO_OUTPUT_ARRAY_SIZE; i; i--){
       output_buffer[i-1] = context->Output.CurState[j++];
     }
+
     HAL_SPI_TransmitReceive(&hspi2, output_buffer, input_buffer, IO_SPI_IO_ARRAY_SIZE, 100);
-    OutputWrite();
+
+    //outputs write
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
+    DelayUs(1);
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
+
+  #elif defined(CONFIG_MALT24VI)
+
+    /*
+     *
+     *  bytes           [0]                  [1]                      [2]
+     *           MSB          LSB  MSB                 LSB  MSB                  LSB
+     *           8,7,6,5,4,3,2,1
+     *  bits    |1,2,3,4,5,6,7,8 | 9,10,11,12,13,14,15,16 | 17,18,19,20,21,22,23,24 |
+     *  Y1:set  |              1                                                    | 0x000001
+     *  Y24:set |                                            1                      | 0x800000
+     *  korrekció után
+     *  Y1:set  |  1                                                                | = 0x40
+    */
+    uint32_t y = *((uint32_t*)context->Output.CurState);
+    uint32_t o = 0;
+
+    y & 0x000001 ? (o |= 0x000040): (o &= ~0x000040);    //Y1 -> 2.bit
+    y & 0x000002 ? (o |= 0x000080): (o &= ~0x000080);    //Y2 -> 1.bit
+    y & 0x000004 ? (o |= 0x000010): (o &= ~0x000010);    //Y3 -> 4.bit
+    y & 0x000008 ? (o |= 0x000020): (o &= ~0x000020);    //Y4 -> 3.bit
+    y & 0x000010 ? (o |= 0x000002): (o &= ~0x000002);    //Y5 -> 2.bit
+    y & 0x000020 ? (o |= 0x000001): (o &= ~0x000001);    //Y6 -> 8.bit
+    y & 0x000040 ? (o |= 0x000008): (o &= ~0x000008);    //Y7 -> 5.bit
+    y & 0x000080 ? (o |= 0x000004): (o &= ~0x000004);    //Y8 -> 6.bit
+
+    y & 0x000100 ? (o |= 0x004000): (o &= ~0x004000);    //Y9  -> 10.bit
+    y & 0x000200 ? (o |= 0x008000): (o &= ~0x008000);    //Y10 -> 9.bit
+    y & 0x000400 ? (o |= 0x001000): (o &= ~0x001000);    //Y11 -> .bit
+    y & 0x000800 ? (o |= 0x002000): (o &= ~0x002000);    //Y12 -> .bit
+    y & 0x001000 ? (o |= 0x000200): (o &= ~0x000200);    //Y13 -> .bit
+    y & 0x002000 ? (o |= 0x000100): (o &= ~0x000100);    //Y14 -> .bit
+    y & 0x004000 ? (o |= 0x000800): (o &= ~0x000800);    //Y15 -> .bit
+    y & 0x008000 ? (o |= 0x000400): (o &= ~0x000400);    //Y16 -> .bit
+
+    y & 0x010000 ? (o |= 0x400000): (o &= ~0x400000);    //Y17  -> .bit
+    y & 0x020000 ? (o |= 0x800000): (o &= ~0x800000);    //Y18 -> .bit
+    y & 0x040000 ? (o |= 0x100000): (o &= ~0x100000);    //Y19 -> .bit
+    y & 0x080000 ? (o |= 0x200000): (o &= ~0x200000);    //Y20 -> .bit
+    y & 0x100000 ? (o |= 0x020000): (o &= ~0x020000);    //Y21 -> .bit
+    y & 0x200000 ? (o |= 0x010000): (o &= ~0x010000);    //Y22 -> .bit
+    y & 0x400000 ? (o |= 0x080000): (o &= ~0x080000);    //Y23 -> .bit
+    y & 0x800000 ? (o |= 0x040000): (o &= ~0x040000);    //Y24 -> .bit
+
+    output_buffer[2] |= o & 0xFF;
+    output_buffer[1] |= (o >>8) & 0xFF;
+    output_buffer[0] |= (o >>16) & 0xFF;
+
+    HAL_SPI_TransmitReceive(&hspi2, output_buffer, input_buffer, IO_SPI_IO_ARRAY_SIZE, 100);
+
+    //outputs write
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
+    DelayUs(1);
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
+
   #else
     #error "Imserelten konfiguracio"
   #endif
 
-
-
-}
-
-#if (DEVICE_INPUTS_COUNT > 0)
-inline void InputLoad(void){
-  HAL_GPIO_WritePin(DI_LD_GPIO_Port, DI_LD_Pin, GPIO_PIN_RESET);
-  DelayUs(1);
-  HAL_GPIO_WritePin(DI_LD_GPIO_Port, DI_LD_Pin, GPIO_PIN_SET);
-  DelayUs(1);
-}
-#endif
-
-inline void OutputWrite(void){
-  HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
-  DelayUs(1);
-  HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
 }
 
 uint8_t OutputDriverLoopTest(void)

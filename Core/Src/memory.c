@@ -56,7 +56,7 @@ uint8_t MemoryLoad(MemoryTypeDef *mem)
       if(status != HAL_OK)
         return MEM_FAIL;
 
-     memcpy(mem->Name, MEM_DEF_NAME, sizeof(mem->Name));
+     memcpy(mem->Name, MEM_DEF_NAME, sizeof(MEM_DEF_NAME));
      status = MemoryLowWrite(mem->Address.Name, mem->Name, sizeof(mem->Name));
      if(status != HAL_OK)
        return MEM_FAIL;

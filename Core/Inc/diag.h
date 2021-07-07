@@ -15,13 +15,21 @@
 /* Exported types ------------------------------------------------------------*/
 
 
+#define DIAG_FRAME_TYPE_TX   1
+#define DIAG_FRAME_TYPE_RX   2
+
 
 typedef struct{
-    uint8_t Byte1;
+    uint8_t Address;
+    uint8_t Type;
+    char Marker;
     uint32_t Counter;
 }DiagItemTypeDef;
 
 typedef struct{
+
+  uint16_t ItemsCount;
+
 
   struct _statusCounters
   {
@@ -45,8 +53,7 @@ typedef struct{
 }DiagHandleTypeDef;
 
 void DiagInit(DiagHandleTypeDef *h);
-void DiagRxFrame(DiagHandleTypeDef *h, uint8_t *data, size_t length);
-void DiagTxFrame(DiagHandleTypeDef *h, uint8_t *data, size_t length);
+void DiagAddFrame(DiagHandleTypeDef *h, uint8_t address, uint8_t type, char marker);
 void DiagTask(DiagHandleTypeDef *h);
 
 #endif

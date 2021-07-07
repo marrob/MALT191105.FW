@@ -84,8 +84,10 @@ extern LedHandle_Type    hLed;
 //#define CONFIG_MALT160T
 //#define CONFIG_MALT132
 //#define CONFIG_MALT23THV
+#define CONFIG_MALT24VI
 //#define CONFIG_MALT16PIN
-#define CONFIG_MALT40IO
+//#define CONFIG_MALT40IO
+
 
 #if  defined(CONFIG_MALT160T)
   #define DEVICE_FIRST_NAME           "MALT160T"
@@ -114,12 +116,21 @@ extern LedHandle_Type    hLed;
   #define DEVICE_BLOCKS               1
   #define DEVICE_FAMILY_CODE          0x03
   #define DEVICE_OPTION_CODE          0x10
+#elif defined(CONFIG_MALT24VI)
+  #define DEVICE_FIRST_NAME           "MALT24VI"
+  #define DEVICE_PCB                  "V00"
+  #define DEVICE_OUTPUTS_COUNT        24
+  #define DEVICE_INPUTS_COUNT         0
+  #define DEVICE_BLOCK_SIZE           3
+  #define DEVICE_BLOCKS               1
+  #define DEVICE_FAMILY_CODE          0x03
+  #define DEVICE_OPTION_CODE          0x11
 #elif defined(CONFIG_MALT16PIN)
   #define DEVICE_FIRST_NAME           "MALT16PIN"
   #define DEVICE_PCB                  "V00"
   #define DEVICE_OUTPUTS_COUNT        16
   #define DEVICE_INPUTS_COUNT         0
-  #define DEVICE_BLOCK_SIZE           3 /*3 bajt van egy blokban, max 4 bájt lehet*/
+  #define DEVICE_BLOCK_SIZE           3
   #define DEVICE_BLOCKS               1
   #define DEVICE_FAMILY_CODE          0x05
   #define DEVICE_OPTION_CODE          0x00
