@@ -229,20 +229,34 @@ void IoTask(IoTypeDef *context)
   memset(input_buffer, 0x00, IO_SPI_IO_ARRAY_SIZE);
 
   #if defined(CONFIG_MALT160T)
-    uint8_t buffer[IO_OUTPUT_ARRAY_SIZE];
     uint8_t i,j;
+    uint8_t reserve_buffer[IO_SPI_IO_ARRAY_SIZE];
+    memset(reserve_buffer, 0x00, IO_SPI_IO_ARRAY_SIZE);
     j=0;
     for(i=0; i < IO_OUTPUT_ARRAY_SIZE/2; i++)
     {
-      buffer[j]= state[i];
+      output_buffer[j]= context->Output.CurState[i];
       j+=2;
     }
     j=1;
     for(i=IO_OUTPUT_ARRAY_SIZE/2; i < IO_OUTPUT_ARRAY_SIZE; i++)
     {
-      buffer[j]= state[i];
+      output_buffer[j]= context->Output.CurState[i];
       j+=2;
     }
+
+    for(uint8_t j=0, i = IO_OUTPUT_ARRAY_SIZE; i; i--){
+      output_buffer[i-1] = context->Output.CurState[j++];
+    }
+
+    HAL_SPI_TransmitReceive(&hspi2, reserve_buffer, input_buffer, IO_SPI_IO_ARRAY_SIZE, 100);
+
+    //outputs write
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_SET);
+    DelayUs(1);
+    HAL_GPIO_WritePin(RLY_WR_GPIO_Port, RLY_WR_Pin, GPIO_PIN_RESET);
+
+
   #elif defined(CONFIG_MALT40IO)
     //input load
     HAL_GPIO_WritePin(DI_LD_GPIO_Port, DI_LD_Pin, GPIO_PIN_RESET);
