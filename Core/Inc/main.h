@@ -84,9 +84,9 @@ extern LedHandle_Type    hLed;
 //#define CONFIG_MALT160T
 //#define CONFIG_MALT132
 //#define CONFIG_MALT23THV
-#define CONFIG_MALT24VI
+//#define CONFIG_MALT24VI
 //#define CONFIG_MALT16PIN
-//#define CONFIG_MALT40IO
+#define CONFIG_MALT40IO
 
 
 #if  defined(CONFIG_MALT160T)

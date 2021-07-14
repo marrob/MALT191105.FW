@@ -102,13 +102,13 @@ void LiveLedOn(void);
 void FailLedOn(void);
 void FailLedOff(void);
 
-uint8_t GetAddress(void);
+uint8_t Get(void);
 uint8_t GetSpeed(void);
-
+uint8_t GetAddress(void);
 static void CanInit(CanBusSpeedTypeDef *speed);
 void RespInfo();
 void CanRespRlyCnt(uint8_t relaynumber);
-static HAL_StatusTypeDef CanRespSend(uint8_t address, uint8_t *frame, size_t size);
+static HAL_StatusTypeDef CanRespSend(uint8_t , uint8_t *frame, size_t size);
 void OutputStatusTask(void);
 void UpTimeIncrementTask(void);
 
